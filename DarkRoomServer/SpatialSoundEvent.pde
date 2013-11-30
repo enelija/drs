@@ -5,13 +5,15 @@ class SpatialSoundEvent {
   float distance;      // range [0.0-10.0]
   float angle;         // range [0.0-360.0]
   boolean isOn;        // turn sound on or off
+  boolean isLooped;    // looped or single played sound
   
   SpatialSoundEvent(int number) {
     this.number = number;
-    this.volume = 0.0;
+    this.volume = 1.0;
     this.distance = 1.0;
     this.angle = 0.0;
-    this.isOn = false;
+    this.isOn = true;
+    this.isLooped = false;
   }
   
   void setVolume(float volume) {
@@ -28,6 +30,10 @@ class SpatialSoundEvent {
   
   void setIsOn(boolean isOn) {
     this.isOn = isOn;
+  }
+  
+  void setIsLooped(boolean isLooped) {
+    this.isLooped = isLooped;
   }
   
   void resetDistance() {
@@ -52,5 +58,9 @@ class SpatialSoundEvent {
   
   boolean isOn() {
     return isOn;
+  }
+  
+  boolean isLooped() {
+    return isLooped;
   }
 }
