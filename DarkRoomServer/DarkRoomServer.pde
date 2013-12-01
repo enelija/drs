@@ -23,7 +23,7 @@ final int HIT = 4;
 final int NUMBER_INTERACTIONS = 5;
 float [] volumes = {1.0, 1.0, 1.0, 1.0, 1.0};
 SpatialSoundEvent soundEvents[] = new SpatialSoundEvent[NUMBER_INTERACTIONS];
-boolean isSystemOn = false, isTouchOn = false;
+boolean isSystemOn = true /* false */, isTouchOn = false;
 
 // OSC communication
 OscP5 trackingListener, trackingSender, caveListener, caveListenerTcp, soundSender; 
@@ -100,7 +100,7 @@ void setupOscListeners() {
 }
 
 void setupOscSenders() {
-  trackingSender = new OscP5(this, TRACKING_SENDER_PORT);
+  trackingSender = new OscP5(caveIP, TRACKING_SENDER_PORT);
   soundSender = new OscP5(this, SOUND_SENDER_PORT);
   caveNetAddress = new NetAddress(caveIP, TRACKING_SENDER_PORT);
   soundNetAddress = new NetAddress(localIP, SOUND_SENDER_PORT);
