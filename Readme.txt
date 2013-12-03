@@ -1,14 +1,14 @@
 Installation:
-=====================================================================================================
-- Download and install Processing (32-bit version on Windows since the Serial communication does 
-  only work with the 32-bit version).
+=========================================================================================
+- Download and install Processing (32-bit version on Windows since the Serial 
+  communication does only work with the 32-bit version).
 
 - Go to 'Sketch' menu -> 'Import Library' -> 'Add library' and install the oscP5 library
 
 
 
 Configuration:
-=====================================================================================================
+=========================================================================================
 - Change the caveIP if necessary
 
 - Change the ports if necessary:
@@ -22,29 +22,30 @@ Configuration:
 
 - turn DEBUG off if desired
 
-- change the bumpHit length (300 ms) if a longer/shorter vibration motor activation is desired
+- change the bumpHit length (300 ms) if a longer/shorter vibration motor activation is 
+  desired
 
 
 
 DOCUMENTATION:
-=====================================================================================================
-- The Processing patch receives position coordinates from the CAVE (cave user) and the tracking 
-  system (room user) via OSC (UDP and TCP). Also the velocity of the cave user and some interaction
-  events (bump/hit/touch) are sent. 
-  All these messages are transformed (mapped to other coordinate systems,...) and sent to the 
+=========================================================================================
+- The Processing patch receives position coordinates from the CAVE (cave user) and the 
+  tracking system (room user) via OSC (UDP and TCP). Also the velocity of the cave user 
+  and some interaction events (bump/hit/touch) are sent. 
+  All these messages are transformed (mapped to target coordinate system) and sent to 
  -- sound system which sonifies the cave user position and interactions and the
- -- haptic vest which gives haptic feedback for all interactions (bump/hit/touch) and also has some
-    LEDs which are tracked by a camera to track the room user position
+ -- haptic vest which gives haptic feedback for all interactions (bump/hit/touch) and also 
+    has some LEDs which are tracked by a camera to track the room user position
 
 - The specification of the messages sent over OSC can be found here: 
   http://www.interface.ufg.ac.at/vrprojectwiki/index.php/Communication_Protocol
 
 - In the beginning/end an activation event is sent to turn this system on/off (TCP)
  -- if the system is off no shounds should be played (so looped sounds are turned off)
- -- if the system is on, the position and mood (velocity mapped to a heartbeat sound) of the cave 
-    user is played
- -- all other sounds and the haptic vest actuators are triggered when interactions (bump/hit/touch)
-    occur and are not explicitly turned on/off by the system on/off event
+ -- if the system is on, the position and mood (velocity mapped to a heartbeat sound) of 
+    the cave user is played
+ -- all other sounds and the haptic vest actuators are triggered when interactions 
+   (bump/hit/touch) occur and are not explicitly turned on/off by the system on/off event
 
 - For the touch interaction on/off events are sent (TCP)
  -- between these, the touch positions are sent (UDP) 
@@ -94,14 +95,15 @@ DOCUMENTATION:
   --- calculate the best fitting motor for two regions:
    ---- upper part -> horizontal line of motors on the front: 0, 1, 2, 3, 4, 5
    ---- lower part -> vertical line of motors on the back: 12, 13, 14, 15
-  -- for the HIT: activate three motors in a row, the center one stronger than the outer ones
-                  for a certain time (~300 ms)
-  -- for TOUCH: keep the motor on as long as an other motor is on, until the off event is sent
+  -- for the HIT: activate three motors in a row, the center one stronger than the outer
+                  ones for a certain time (~300 ms)
+  -- for TOUCH: keep the motor on as long as an other motor is on, until the off event is
+                sent
 
 
 
 TODO: 
-=====================================================================================================
+=========================================================================================
 - map CAVE coordinates to vest coordinates: this method needs to respect the current
   room user position and orientation (roomUserX, roomUserY, roomUserO)
 
@@ -111,12 +113,12 @@ TODO:
 
 - map the CAVE coordinates to sound system coordinates
 
-- for all interactions (bump/hit/touch) replace code "if (true)" by a meaningful decsision when
-  to activate the suggested motors (depending on the given CAVE user coordinates and the current 
-  position and orientation of the room user)
+- for all interactions (bump/hit/touch) replace code "if (true)" by a meaningful decision
+  when to activate the suggested motors (depending on the given CAVE user coordinates and
+  the current position and orientation of the room user)
 
 - add more debug output (for testing) and test and fix bugs
 
-- test with haptic vest and if necessary add an explicit LR or CF to the sent command (bluetooth 
-  communication)
+- test with haptic vest and if necessary add an explicit LR or CF to the sent command 
+  (bluetooth communication)
 
