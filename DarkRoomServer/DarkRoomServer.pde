@@ -14,6 +14,38 @@ import processing.serial.*;
 
 final boolean DEBUG = true;
 
+
+
+// CONFIGURATION
+// ==================================================================================
+// dimensions of all rooms are in centimeters
+//   CAVE: is a right-handed cartesian coordinate system 
+//         X: right to left axis; Y: depth axis into the screen; Z: up axis, counter-clockwise rotation
+//   DARK ROOM: 2D cartesian coordinate system and square
+//              origin is upper/left coordinate of the camera
+//   SOUND SYSTEM: 2D polar coordinate system 
+//                 origin is in the center, radius is 1.0
+float caveVirtualWidth = 500, caveVirtualLength = 500, caveVirtualHeight = 300, 
+      darkRoomWidth = 300, darkRoomLength = 300, darkRoomHeight = 200; 
+
+String caveIP = "127.0.0.1";
+String localIP = "127.0.0.1";
+
+final int SOUND_SENDER_PORT = 12345;
+final int TRACKING_SENDER_PORT_SOUND = 12346;
+final int TRACKING_SENDER_PORT_CAVE = 12344;
+final int TRACKING_LISTENER_PORT = 12347;
+final int CAVE_LISTENER_PORT = 12348;
+final int CAVE_LISTENER_TCP_PORT = 12349;
+
+final int BLUETOOTH_PORT = 0; // 0: COM1 (Windows) // 1: COM3 (Windows)
+
+int minHearbeat = 60, maxHeartbeat = 180;                            // in beats per minute
+
+int bumpHitLength = 300; // 300 milliseconds
+// ==================================================================================
+
+
 // sound
 final int POSITION = 0;
 final int VELOCITY = 1;
@@ -23,19 +55,11 @@ final int HIT = 4;
 final int NUMBER_INTERACTIONS = 5;
 float [] volumes = {1.0, 1.0, 1.0, 1.0, 1.0};
 SpatialSoundEvent soundEvents[] = new SpatialSoundEvent[NUMBER_INTERACTIONS];
-boolean isSystemOn = true /* false */, isTouchOn = false;
+boolean isTouchOn = false, isSystemOn = true /* false // false is defaut, true is for testing only*/;
 
 // OSC communication
 OscP5 trackingListener, trackingSender, caveListener, caveListenerTcp, soundSender; 
 NetAddress caveNetAddress, soundNetAddress;
-final int SOUND_SENDER_PORT = 12345;
-final int TRACKING_SENDER_PORT = 12346;
-final int TRACKING_LISTENER_PORT = 12347;
-final int CAVE_LISTENER_PORT = 12348;
-final int CAVE_LISTENER_TCP_PORT = 12349;
-
-String caveIP = "127.0.0.1";
-String localIP = "127.0.0.1";
 
 String soundPattern = "/SonicCave";                                  // UDP
 String trackingPattern = "/tracking";                                // UDP
@@ -54,28 +78,13 @@ float centerX = 0.0, centerY = 0.0,
       caveUserX = 0.0, caveUserY = 0.0, caveUserVel = 0.0, 
       maxVelocity = 1.0,
       caveUserSoundDistance = 0.0, caveUserSoundAngle = 0.0;
-int roomUserH = 60;                                                  // in beats per minute
-int minHearbeat = 60, maxHeartbeat = 180;                            // in beats per minute
 int lastHearbeat = 0;
 
-int bumpHitLength = 300; // 300 milliseconds
 int bumpHitBegin = 0;
-int touchTimeout = 500;  // 500 milliseconds
 boolean bumpHitOn = false;
-
-// dimensions of all rooms are in centimeters
-//   CAVE: is a right-handed cartesian coordinate system 
-//         X: right axis; Y: depth axis into the screen; Z: up axis, counter-clockwise rotation
-//   DARK ROOM: 2D coordinate system and square
-//              origin is upper/left coordinate of the camera
-//   SOUND SYSTEM: 2D coordinate system and square
-//                 origin is in the center
-float caveVirtualWidth = 500, caveVirtualLength = 500, caveVirtualHeight = 300, 
-      darkRoomWidth = 300, darkRoomLength = 300, darkRoomHeight = 200; 
 
 // bluetooth connection
 Serial bluetooth;
-final int bluetoothPort = 0; // 0: COM1 (Windows) // 1: COM3 (Windows)
 int baudRate = 115200;
 int maxMotor = 15;
 int maxStrength = 63;
@@ -100,16 +109,16 @@ void setupOscListeners() {
 }
 
 void setupOscSenders() {
-  trackingSender = new OscP5(caveIP, TRACKING_SENDER_PORT);
+  trackingSender = new OscP5(caveIP, TRACKING_SENDER_PORT_SOUND);
   soundSender = new OscP5(this, SOUND_SENDER_PORT);
-  caveNetAddress = new NetAddress(caveIP, TRACKING_SENDER_PORT);
+  caveNetAddress = new NetAddress(caveIP, TRACKING_SENDER_PORT_CAVE);
   soundNetAddress = new NetAddress(localIP, SOUND_SENDER_PORT);
 }
 
 void setupSerial() {
   for (int i = 0; i < Serial.list().length; ++i)
     println(Serial.list()[i]);
-  String portName = Serial.list()[bluetoothPort];  
+  String portName = Serial.list()[BLUETOOTH_PORT];  
   bluetooth = new Serial(this, portName, baudRate);
 }
 
@@ -125,12 +134,13 @@ void setupSounds() {
   }
 }
 
-// receive OSC messages and react on them 
+// main part: receive OSC messages and react on them 
 void oscEvent(OscMessage message) {
   if (DEBUG) 
     println("OSC message received: " + message.addrPattern() + " " + message.typetag());
   
   // *** receive CAVE person activity ****************************************************************
+  //     to start / stop the system 
   if (message.addrPattern() == caveUserActivityPattern && message.checkTypetag("i")) {
     int onState = message.get(0).intValue();
     if (onState == 1) {                                // turn system and looped sounds on
@@ -152,6 +162,8 @@ void oscEvent(OscMessage message) {
   
   if (isSystemOn) {
     // *** receive tracking position and orientation *************************************************
+    //     forward them to the CAVE in appropriate dimensions
+    //     store them for later calculations
     if (message.addrPattern().equals(trackingPattern) && message.checkTypetag("fff")) { 
       roomUserX = message.get(0).floatValue();
       roomUserY = message.get(1).floatValue();
@@ -159,7 +171,8 @@ void oscEvent(OscMessage message) {
       
       // send position to CAVE
       OscMessage positionToCave = new OscMessage(roomPersonPositionPattern);
-      positionToCave.add(roomUserX);      // TODO: probably map dark room dimensions to CAVE dimensions
+      // TODO: map dark room dimensions to CAVE dimensions
+      positionToCave.add(roomUserX);
       positionToCave.add(roomUserY);
       trackingSender.send(positionToCave, caveNetAddress);
       
@@ -167,28 +180,28 @@ void oscEvent(OscMessage message) {
       OscMessage orientationToCave = new OscMessage(roomPersonOrientationPattern);
       orientationToCave.add(roomUserO);
       trackingSender.send(orientationToCave, caveNetAddress); 
-      
-      // send heartbeat to CAVE
-      OscMessage heartbeatToCave = new OscMessage(roomPersonHeartbeatPattern);
-      heartbeatToCave.add(roomUserH);
-      trackingSender.send(heartbeatToCave, caveNetAddress); 
-      
+            
       if (DEBUG) 
         println("   tracked X/Y/O: " + roomUserX + " / " + roomUserY + " / " + roomUserO);
     } 
     
     // *** receive CAVE position  ********************************************************************
+    //     forward the position to the sound system
+    //     store them for later calculations
     else if (message.addrPattern() == caveUserPositionPattern && message.checkTypetag("ff")) {
       caveUserX = message.get(0).floatValue();
       caveUserY = message.get(1).floatValue();
       
       // send to sound system (caveuser)
+      // TODO: map dark room coordinates (center) and CAVE user coordinates (caveUser) to 
+      //       sound coordinates
       caveUserSoundDistance = dist(centerX, centerY, caveUserX, caveUserY);
-      caveUserSoundAngle = 180.0 + atan2((centerY - caveUserY), (centerX - caveUserX)) * 180.0 / PI;
+      caveUserSoundAngle = getAngle(centerX, centerY, caveUserX, caveUserY); 
       sendSoundChangeEvent(POSITION, caveUserSoundDistance, caveUserSoundAngle);
     }
       
     // *** receive CAVE velocity *********************************************************************
+    //     use the velocity to change the heartbeat sound trigger speed
     else if (message.addrPattern() == caveUserVelocityPattern && message.checkTypetag("f")) {
       float velocity = message.get(1).floatValue();
       
@@ -203,6 +216,8 @@ void oscEvent(OscMessage message) {
     }
     
     // *** receive CAVE touch event ******************************************************************
+    //     this is a on/off message to start the touch and end it
+    //     enable/disable the touch sound 
     else if (message.addrPattern() == caveUserTouchPattern && message.checkTypetag("i")) {
       int onState = message.get(0).intValue();
       
@@ -218,22 +233,10 @@ void oscEvent(OscMessage message) {
     }
     
     // *** receive CAVE touch positions **************************************************************
-    else if (isTouchOn && message.addrPattern() == caveUserTouchingPattern && message.checkTypetag("fff")) {      
-        //        R         FRONT         L
-        //        <--------- 52cm -------->
-        //        +--------] _ _ [--------+           0: right shoulder (outer)
-        //      / |   0 1 2       3 4 5   | \         1: right shoulder (center)
-        //     /  |   <9cm>       <9cm>   |  \        2: right shoulder (inner) 
-        //    /    \                     /    \       3: left shoulder (inner)
-        //   /    / \                   / \    \      4: left shoulder (center)
-        //   |  7|   \                 /   |6  |      5: left shoulder (outer) 
-        //   |   |  +-------------------+  |   |      6: left arm
-        //   |   |  |8                 9|  |   |      7: right arm
-        //   |   |  +-------------------+  |   |      8: right hip
-        //               \         /                  9: left hip
-        //                \ _____ /
-        
+    //     map the touch positions to vest positions and activate/deactivate the motors accordingly
+    else if (isTouchOn && message.addrPattern() == caveUserTouchingPattern && message.checkTypetag("fff")) {
         //       L           BACK          R
+        //       <---------- 52cm --------->
         //  +-   +--------] _ _ _ [--------+ -+
         //  8cm  |  <------- 30cm ------>  |  |      10: back (left very top)
         //  +-   |  10          _|7cm  11  |  |      11: back (right very top)
@@ -246,10 +249,23 @@ void oscEvent(OscMessage message) {
         //              \           /         |
         //               \ _______ /         -+
         //                <- 7cm ->
+      
+        //        R         FRONT         L
+        //        +--------] _ _ [--------+           0: right shoulder (outer)
+        //      / |   0 1 2       3 4 5   | \         1: right shoulder (center)
+        //     /  |   <9cm>       <9cm>   |  \        2: right shoulder (inner) 
+        //    /    \                     /    \       3: left shoulder (inner)
+        //   /    / \                   / \    \      4: left shoulder (center)
+        //   |  7|   \                 /   |6  |      5: left shoulder (outer) 
+        //   |   |  +-------------------+  |   |      6: left arm
+        //   |   |  |8                 9|  |   |      7: right arm
+        //   |   |  +-------------------+  |   |      8: right hip
+        //               \         /                  9: left hip
+        //                \ _____ /
         
         float touchX = message.get(0).floatValue();
         float touchY = message.get(1).floatValue();
-        float touchO = message.get(2).floatValue();
+        float touchZ = message.get(2).floatValue();
         
         // send touching coordinates to vest -> map to motors
         
@@ -261,6 +277,8 @@ void oscEvent(OscMessage message) {
         //        0 -  10 = motor 3
         //       10 -  20 = motor 4
         //       20 -  30 = motor 5
+        // TODO: map the CAVE touch event coordinates to the vest coordinates
+        //       if they are approximately on the upper part of the back, activate the horizontally layouted motors
         if (true) {
           sendResetToHapticVest();
           sendToHapticVest(0, hitStrength);       // horizontal 0-5
@@ -272,17 +290,21 @@ void oscEvent(OscMessage message) {
         //      15-30 = motor 13
         //      30-45 = motor 14
         //      45-60 = motor 15
+        // TODO: map the CAVE touch event coordinates to the vest coordinates
+        //       if they are approximately on the middle/lower part of the back, activate the vertically layouted motors
         if (true) {
           sendResetToHapticVest();
           sendToHapticVest(12, hitStrength);      // vertical 12-15
         }
         
-        // send touch position to system
-        float distance = 0.0, angle = 0.0;
-        sendSoundChangeEvent(TOUCH, distance, angle);
+        // send touch position (x,y) to sound system
+        sendSoundChangeEvent(TOUCH, dist(centerX, centerY, touchX, touchY), 
+                                    getAngle(centerX, centerY, touchX, touchY));
       }
     
     // *** receive CAVE hit positions **************************************************************
+    //     activate the motors next to the hit positions
+    //     trigger the hit sound
     else if (message.addrPattern() == caveUserHitPattern && message.checkTypetag("fff")) {
       float hitX = message.get(0).floatValue();
       float hitY = message.get(1).floatValue();
@@ -292,20 +314,24 @@ void oscEvent(OscMessage message) {
       if (newBumpHitEvent()) {
                 
         // send hit to vest       
+        
+        // horizontal mapping (if hit more on the top / shoulder area) - see touch
         // TODO: calculate hit position from room user direction and both users positions
         //       map hit coordinates to horizontal/vertical motor row/column on the vest
-        
-        // horizontal mapping (if touch more on the top / shoulder area)
         if (true)
-          sendToHapticVest(0, hitStrength);       // vertical 0-5
+          sendToHapticVest(0, hitStrength);       // horizontal 0-5
+          // TODO: maybe activate 3 motors in a row at the same time 
+          //       the outer ones with less and the center one with more strength
         
-        // vertical mapping (if touch more in the center / back area) 
+        // vertical mapping (if hit more in the center / back area) - see touch
         if (true)
           sendToHapticVest(6, hitStrength);       // vertical 12-15
-        
-        // send hit to sound system
-        float distance = 0.0, angle = 0.0;
-        sendSoundChangeEvent(HIT, distance, angle);
+          // TODO: maybe activate 3 motors in a column at the same time
+          //       the outer ones with less and the center one with more strength
+          
+        // send hit event to the sound system
+        sendSoundChangeEvent(HIT, dist(centerX, centerY, hitX, hitY), 
+                                  getAngle(centerX, centerY, hitX, hitY));
       } 
       
       // turn off motors
@@ -314,6 +340,8 @@ void oscEvent(OscMessage message) {
     }
     
     // *** receive CAVE bump positions **************************************************************
+    //     activate some motors for a certain period of time to make the bump a haptic experience
+    //     trigger the bump sound
     else if (message.addrPattern() == caveUserBumpPattern && message.checkTypetag("ff")) {
       float bumpX = message.get(0).floatValue();
       float bumpY = message.get(1).floatValue();
@@ -322,10 +350,12 @@ void oscEvent(OscMessage message) {
       if (newBumpHitEvent()) {
         
         // send bump to vest       
-        // TODO: calculate left/center/right bump from room user direction and both users positions
-        // map bump coordinates to some selected left/center/right motors on the vest 
-                
+         
         //   bump left
+        // TODO: calculate left/center/right bump from room user direction and both users positions
+        //       map bump coordinates to some selected left/center/right motors on the vest 
+        //       do not change the number of selected motors, we can not activate too many at once 
+        //       due to power limitations
         if (true) {
           sendToHapticVest( 5, bumpStrength);
           sendToHapticVest( 6, bumpStrength);
@@ -349,9 +379,9 @@ void oscEvent(OscMessage message) {
           sendToHapticVest(11, bumpStrength);
         }
         
-        // send bump to sound system
-        float distance = 0.0, angle = 0.0;
-        sendSoundChangeEvent(BUMP, distance, angle);
+        // send bump event to the sound system
+        sendSoundChangeEvent(HIT, dist(centerX, centerY, bumpX, bumpY), 
+                                  getAngle(centerX, centerY, bumpX, bumpY));
       } 
       
       // turn off motors
@@ -360,6 +390,10 @@ void oscEvent(OscMessage message) {
     }
   } 
 }
+
+float getAngle(x1, y1, x2, y2) {
+  return 180.0 + atan2((y1 - y2), (x1 - x2)) * 180.0 / PI;
+} 
 
 boolean newBumpHitEvent() {
   if (!bumpHitOn) {
@@ -391,7 +425,7 @@ void sendToHapticVest(int motor, int strength) {
   if (motor < maxMotor && strength < maxStrength) {
     char motorFlag = char(65 + motor);
     char strengthFlag = char(48 + strength); 
-    String command = "p" + motorFlag + strengthFlag;    // TODO: add explicit LR or CF if necessary
+    String command = "p" + motorFlag + strengthFlag;    // TODO: add explicit LR or CF if necessary - first test with haptic vest
     if (DEBUG)
       println("Sending command " + command);
     bluetooth.write(command);
@@ -400,7 +434,7 @@ void sendToHapticVest(int motor, int strength) {
 
 // send reset motor control message
 void sendResetToHapticVest() {
-  String command = "r";    // TODO: add explicit LR or CF if necessary
+  String command = "r";    // TODO: add explicit LR or CF if necessary - first test with haptic vest
   if (DEBUG)
     println("Sending command " + command);
   bluetooth.write(command);
