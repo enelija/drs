@@ -17,25 +17,32 @@ final boolean DEBUG = true;
 // CONFIGURATION
 // ==================================================================================
 // COORDINATE SYSTEMS:
-//   CAVE:  3D right-handed cartesian coordinate system
-//          X: right to left axis; Y: depth axis into the screen; Z: up axis, counter-clockwise rotation
-//          origin is on the floor in the center 
-//          units are given in centimeters with 2000 cm in each dimension 
-//          w/l: [-1000, 1000] h: [0, 2000]
-//   ROOM:  2D cartesian coordinate system
-//          origin is upper/left coordinate of the camera (one room corner)
-//          units given in pixels with 1024 x 768 pixels 
-//          w: [0, 1024] h: [0, 768]
-//   SOUND: 2D polar coordinate system
-//          origin is in the center
-//          radius is 1.0 [0.0, 1.0] in 360 degrees
-//   VEST:  2D cartesian coordinate system
-//          origin is the bottom center
-//          width and height are 52 and 62,5 centimeters: [-25.1, 25.1] and [0, 62.5]
+//   CAVE:   3D right-handed cartesian coordinate system
+//           X: right to left axis; Y: depth axis into the screen; 
+//           Z: up axis counter-clockwise rotation
+//           origin is on the floor in the center 
+//           units are given in centimeters with 2000 cm in each dimension 
+//           w/l: [-1000, 1000] h: [0, 2000]
+//   ROOM:   2D cartesian coordinate system
+//           origin is upper/left coordinate of the camera (one room corner)
+//           units given in pixels with 1024 x 768 pixels 
+//           w: [0, 1024] h: [0, 768]
+//   SOUND:  2D polar coordinate system
+//           origin is in the center
+//           radius is 1.0 [0.0, 1.0] in 360 degrees
+//   AVATAR: 3D cartesian coordinate system
+//           origin is the bottom center
+//           width/height/depth are 100.0/130.0/20.0 centimeters: 
+//           [-50.0, 50.0] / [0.0, 130.0] / [-10.0, 10.0]
+//   VEST:   2D cartesian coordinate system with back and front side
+//           origin is the bottom center
+//           width and height are 52 and 62,5 centimeters: [-25.1, 25.1] and [0, 62.5]
 
 float caveLeft = -1000.0, caveRight = 1000.0, caveBottom = 0.0, caveTop = 2000.0, // cm
-      roomWidth = 1024.0, roomLength = 768.0,                                     // px
+      roomWidth = 1024.0, roomHeight = 768.0,                                     // px
       soundRadius = 1.0,                                                          // normalized
+    avatarLeft = -50.0, avatarRight = 50.0, avatarTop = 130.0,                  // cm
+    avatarBack = -10.0, avatarFront = 10.0,                                     // cm
       vestLeft = -25.1, vestRight = 25.1, vestBottom = 0.0, vestTop = 62.5;       // cm
 
 String caveIP = "127.0.0.1";
@@ -55,6 +62,10 @@ final int BLUETOOTH_PORT = 0; // 0: COM1 (Windows) // 1: COM3 (Windows)
 int minHearbeat = 60, maxHeartbeat = 180;                            // in beats per minute
 
 int bumpHitLength = 300; // 300 milliseconds
+
+int touchStrength = 30;
+int bumpStrength = 50;
+int hitStrength = 63;
 // ==================================================================================
 
 // sound
@@ -100,8 +111,6 @@ int baudRate = 115200;
 int maxMotor = 15;
 int maxStrength = 63;
 
-int bumpStrength = 50;
-int hitStrength = 63;
 
 void setup() {
   setupOscListeners();
@@ -191,9 +200,8 @@ void oscEvent(OscMessage message) {
       
       // send position to CAVE
       OscMessage positionToCave = new OscMessage(roomPersonPositionPattern);
-      // TODO: map dark room dimensions to CAVE dimensions
-      positionToCave.add(roomUserX);
-      positionToCave.add(roomUserY);
+    positionToCave.add(map(roomUserX, 0.0, roomWidth, caveLeft, caveRight));
+      positionToCave.add(map(roomUserY, 0.0, roomHeight, caveLeft, caveRight));
       caveOSC.send(positionToCave, caveNetAddress);
       
       // send orientation to CAVE
@@ -213,10 +221,10 @@ void oscEvent(OscMessage message) {
         println(" " + caveUserX + " " + caveUserY);
         
       // send to sound system (caveuser)
-      // TODO: map dark room coordinates (center) and CAVE user coordinates (caveUser) to 
-      //       sound coordinates
-      caveUserSoundDistance = dist(centerX, centerY, caveUserX, caveUserY);
-      caveUserSoundAngle = getAngle(centerX, centerY, caveUserX, caveUserY); 
+    float x = map(caveUserX, caveLeft, caveRight, -1.0, 1.0);
+    float y = map(caveUserY, caveLeft, caveRight, -1.0, 1.0);
+      caveUserSoundDistance = dist(centerX, centerY, x, y);
+      caveUserSoundAngle = getAngle(centerX, centerY, x, y); 
       sendSoundChangeEvent(POSITION, caveUserSoundDistance, caveUserSoundAngle);
     }
       
@@ -296,36 +304,10 @@ void oscEvent(OscMessage message) {
         if (DEBUG)
           println(" " + touchX + " " + touchY + " " + touchZ);
           
-        // send touching coordinates to vest -> map to motors
-        
-        // for touching horizontally: map horizontal vector in cm from -40 (right) - +40 (left) to 
-        //                                                             -30 (right) - +30 (left)
-        // with -30 - -20 = motor 0
-        //      -20 - -10 = motor 1
-        //      -10 -   0 = motor 2
-        //        0 -  10 = motor 3
-        //       10 -  20 = motor 4
-        //       20 -  30 = motor 5
-        // TODO: map the CAVE touch event coordinates to the vest coordinates
-        //       if they are approximately on the upper part of the back, activate the horizontally layouted motors
-        if (true) {
-          sendResetToHapticVest();
-          sendToHapticVest(0, hitStrength);       // horizontal 0-5
-        }
-        
-        // for touching vertically: map z in cm from 140 (top) - 80 (bottom) to 
-        //                                             0 (top) - 60 (bottom)
-        // with  0-15 = motor 12
-        //      15-30 = motor 13
-        //      30-45 = motor 14
-        //      45-60 = motor 15
-        // TODO: map the CAVE touch event coordinates to the vest coordinates
-        //       if they are approximately on the middle/lower part of the back, activate the vertically layouted motors
-        if (true) {
-          sendResetToHapticVest();
-          sendToHapticVest(12, hitStrength);      // vertical 12-15
-        }
-        
+        // send touch coordinates to vest -> map to motors
+        sendResetToHapticVest();
+        sendToHapticVest(getBumpHitMotorId(touchX, touchY, touchZ), touchStrength); 
+
         // send touch position (x,y) to sound system
         sendSoundChangeEvent(TOUCH, dist(centerX, centerY, touchX, touchY), 
                                     getAngle(centerX, centerY, touchX, touchY));
@@ -343,23 +325,10 @@ void oscEvent(OscMessage message) {
         println(" " + hitX + " " + hitY + " " + hitZ);
           
       // new hit event received -> activate motors and sound
-      if (newBumpHitEvent()) {
-                
-        // send hit to vest       
-        
-        // horizontal mapping (if hit more on the top / shoulder area) - see touch
-        // TODO: calculate hit position from room user direction and both users positions
-        //       map hit coordinates to horizontal/vertical motor row/column on the vest
-        if (true)
-          sendToHapticVest(0, hitStrength);       // horizontal 0-5
-          // TODO: maybe activate 3 motors in a row at the same time 
-          //       the outer ones with less and the center one with more strength
-        
-        // vertical mapping (if hit more in the center / back area) - see touch
-        if (true)
-          sendToHapticVest(6, hitStrength);       // vertical 12-15
-          // TODO: maybe activate 3 motors in a column at the same time
-          //       the outer ones with less and the center one with more strength
+      if (newBumpHitEvent()) {    
+        // send hit coordinates to vest -> map to motors       
+        sendResetToHapticVest();
+        sendToHapticVest(getBumpHitMotorId(hitX, hitY, hitZ), hitStrength); 
           
         // send hit event to the sound system
         sendSoundChangeEvent(HIT, dist(centerX, centerY, hitX, hitY), 
@@ -385,33 +354,23 @@ void oscEvent(OscMessage message) {
       if (newBumpHitEvent()) {
         
         // send bump to vest       
-         
-        //   bump left
-        // TODO: calculate left/center/right bump from room user direction and both users positions
-        //       map bump coordinates to some selected left/center/right motors on the vest 
-        //       do not change the number of selected motors, we can not activate too many at once 
-        //       due to power limitations
-        if (true) {
+    float x = map(bumpX, avatarLeft, avatarRight, vestLeft, vestRight);
+    float y = map(bumpY, 0.0, avatarTop, 0.0, vestTop);
+        if (x < vestLeft / 3.0 * 2.0) {        // left bump
           sendToHapticVest( 5, bumpStrength);
           sendToHapticVest( 6, bumpStrength);
           sendToHapticVest( 9, bumpStrength);
           sendToHapticVest(10, bumpStrength);
-        }
-        
-        //   bump center
-        else if (true) {
-          sendToHapticVest(12, bumpStrength);
-          sendToHapticVest(13, bumpStrength);
-          sendToHapticVest(14, bumpStrength);
-          sendToHapticVest(15, bumpStrength);
-        }
-        
-        //   bump right
-        else if (true) {
+        } else if (x > vestRight / 3.0 ) {      // right bump
           sendToHapticVest( 0, bumpStrength);
           sendToHapticVest( 7, bumpStrength);
           sendToHapticVest( 8, bumpStrength);
           sendToHapticVest(11, bumpStrength);
+        } else {                   // center bump
+          sendToHapticVest(12, bumpStrength);
+          sendToHapticVest(13, bumpStrength);
+          sendToHapticVest(14, bumpStrength);
+          sendToHapticVest(15, bumpStrength);
         }
         
         // send bump event to the sound system
@@ -426,6 +385,42 @@ void oscEvent(OscMessage message) {
       println(" BUT COULD NOT BE INTERPRETED!!!");
     }
   } 
+}
+
+
+int getBumpHitMotorId(float vx, float vy, float vz) {
+  
+  float vestWidth = vestRight * 2.0;
+  float x = map(vx, avatarLeft, avatarRight, 0.0, vestWidth);
+  float y = map(vy, 0.0, avatarTop, 0.0, vestTop);
+  
+  if (y > vestTop / 3.0 * 2.0) {        // touch at the upper region -> use horizontal motors 0-5 and 12
+    int numOfMotors = 7;
+    if (x < vestWidth / float(numOfMotors))
+      return 0;         // very left
+    else if (x < vestWidth / float(numOfMotors) * 2.0)
+      return 1;  
+    else if (x < vestWidth / float(numOfMotors) * 3.0)
+      return 2;       
+    else if (x < vestWidth / float(numOfMotors) * 4.0)
+      return 12;
+    else if (x < vestWidth / float(numOfMotors) * 5.0)
+      return 3;  
+    else if (x < vestWidth / 7.0 * 6.0)
+      return 4;
+    else
+      return 5;
+  } else {
+    int numOfMotors = 4;
+    if (y < vestTop / float(numOfMotors))
+      return 12;
+    else if (y < vestTop / float(numOfMotors) * 2.0)
+      return 13;  
+    else if (y < vestTop / float(numOfMotors) * 3.0)
+      return 14;       
+    else
+      return 15;
+  }
 }
 
 float getAngle(float x1, float y1, float x2, float y2) {
