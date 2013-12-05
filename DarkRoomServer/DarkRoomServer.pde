@@ -41,8 +41,8 @@ final boolean DEBUG = true;
 float caveLeft = -1000.0, caveRight = 1000.0, caveBottom = 0.0, caveTop = 2000.0, // cm
       roomWidth = 1024.0, roomHeight = 768.0,                                     // px
       soundRadius = 1.0,                                                          // normalized
-    avatarLeft = -50.0, avatarRight = 50.0, avatarTop = 130.0,                  // cm
-    avatarBack = -10.0, avatarFront = 10.0,                                     // cm
+      avatarLeft = -50.0, avatarRight = 50.0, avatarTop = 130.0,                  // cm
+      avatarBack = -10.0, avatarFront = 10.0,                                     // cm
       vestLeft = -25.1, vestRight = 25.1, vestBottom = 0.0, vestTop = 62.5;       // cm
 
 String caveIP = "127.0.0.1";
@@ -200,7 +200,7 @@ void oscEvent(OscMessage message) {
       
       // send position to CAVE
       OscMessage positionToCave = new OscMessage(roomPersonPositionPattern);
-    positionToCave.add(map(roomUserX, 0.0, roomWidth, caveLeft, caveRight));
+      positionToCave.add(map(roomUserX, 0.0, roomWidth, caveLeft, caveRight));
       positionToCave.add(map(roomUserY, 0.0, roomHeight, caveLeft, caveRight));
       caveOSC.send(positionToCave, caveNetAddress);
       
@@ -221,8 +221,8 @@ void oscEvent(OscMessage message) {
         println(" " + caveUserX + " " + caveUserY);
         
       // send to sound system (caveuser)
-    float x = map(caveUserX, caveLeft, caveRight, -1.0, 1.0);
-    float y = map(caveUserY, caveLeft, caveRight, -1.0, 1.0);
+      float x = map(caveUserX, caveLeft, caveRight, -1.0, 1.0);
+      float y = map(caveUserY, caveLeft, caveRight, -1.0, 1.0);
       caveUserSoundDistance = dist(centerX, centerY, x, y);
       caveUserSoundAngle = getAngle(centerX, centerY, x, y); 
       sendSoundChangeEvent(POSITION, caveUserSoundDistance, caveUserSoundAngle);
@@ -354,8 +354,8 @@ void oscEvent(OscMessage message) {
       if (newBumpHitEvent()) {
         
         // send bump to vest       
-    float x = map(bumpX, avatarLeft, avatarRight, vestLeft, vestRight);
-    float y = map(bumpY, 0.0, avatarTop, 0.0, vestTop);
+        float x = map(bumpX, avatarLeft, avatarRight, vestLeft, vestRight);
+        float y = map(bumpY, 0.0, avatarTop, 0.0, vestTop);
         if (x < vestLeft / 3.0 * 2.0) {        // left bump
           sendToHapticVest( 5, bumpStrength);
           sendToHapticVest( 6, bumpStrength);
