@@ -59,7 +59,7 @@ final int CAVE_LISTENER_PORT = 2380;
 
 final int BLUETOOTH_PORT = 0; // 0: COM1 (Windows) // 1: COM3 (Windows)
 
-int minHearbeat = 60, maxHeartbeat = 180;                            // in beats per minute
+int minHearbeat = 50, maxHeartbeat = 140;                            // in beats per minute
 
 int bumpHitLength = 300; // 300 milliseconds
 
@@ -98,7 +98,7 @@ String roomPersonHeartbeatPattern = "/room_person/hearbeat";         // UDP
 float centerX = 0.0, centerY = 0.0, 
       roomUserX = 0.0, roomUserY = 0.0, roomUserO = 0.0,
       caveUserX = 0.0, caveUserY = 0.0, caveUserVel = 0.0, 
-      maxVelocity = 1.0,
+      maxVelocity = 100.0,
       caveUserSoundDistance = 0.0, caveUserSoundAngle = 0.0;
 int lastHearbeat = 0;
 
@@ -111,7 +111,6 @@ int baudRate = 115200;
 int maxMotor = 15;
 int maxStrength = 63;
 
-
 void setup() {
   setupOscListeners();
   setupOscSenders();
@@ -119,14 +118,102 @@ void setup() {
   setupSounds();
 }
 
-void draw() {}
+void draw() {
+  triggerHeartbeat();
+}
 
 // setup methods
 void setupOscListeners() {
   soundOSC = new OscP5(this, SOUND_LISTENER_PORT);
   trackingOSC = new OscP5(this, TRACKING_LISTENER_PORT);
   caveOSC = new OscP5(this, CAVE_LISTENER_PORT);                 
-  caveOSCtcp = new OscP5(caveIP, CAVE_LISTENER_TCP_PORT, OscP5.TCP);  
+  caveOSCtcp = new OscP5(caveIP, CAVE_LISTENER_TCP_PORT, OscP5.TCP);
+  
+  // need to plug TCP methods since oscEvent can not mix UDP with TCP
+  caveOSCtcp.plug(this, "touch", caveUserTouchPattern);  
+  caveOSCtcp.plug(this, "hit", caveUserHitPattern);  
+  caveOSCtcp.plug(this, "bump", caveUserBumpPattern);
+}
+
+// *** receive CAVE touch event ******************************************************************
+//     this is a on/off message to start the touch and end it
+//     enable/disable the touch sound 
+void touch(int onState) {  
+  if (DEBUG)
+    println("-> RECEIVED " + caveUserTouchPattern + " i - " + onState);
+    
+  // send to sound system -> turn sound (touch) on / off    
+  if (onState == 1) {
+    isTouchOn = true;
+    soundEvents[TOUCH].setIsOn(true);
+  } else if (onState == 0) {
+    isTouchOn = false;
+    soundEvents[TOUCH].setIsOn(false);
+    sendResetToHapticVest();
+  }
+}
+
+// *** receive CAVE hit positions **************************************************************
+//     activate the motors next to the hit positions
+//     trigger the hit sound
+void hit(float hitX, float hitY, float hitZ) {
+  if (DEBUG)
+    println("-> RECEIVED " + caveUserHitPattern + " fff - " + hitX + " " + hitY + " " + hitZ);
+      
+  // new hit event received -> activate motors and sound
+  if (newBumpHitEvent()) {    
+    // send hit coordinates to vest -> map to motors       
+    sendResetToHapticVest();
+    sendToHapticVest(getBumpHitMotorId(hitX, hitY, hitZ), hitStrength); 
+      
+    // send hit event to the sound system
+    sendSoundChangeEvent(HIT, dist(centerX, centerY, hitX, hitY), 
+                              getAngle(centerX, centerY, hitX, hitY));
+  } 
+  
+  // turn off motors
+  else
+    endBumpHitEvent();
+}
+
+// *** receive CAVE bump positions **************************************************************
+//     activate some motors for a certain period of time to make the bump a haptic experience
+//     trigger the bump sound
+void bump(float bumpX, float bumpY) {
+  if (DEBUG)
+    println("-> RECEIVED " + caveUserHitPattern + " fff - " + bumpX + " " + bumpY);
+        
+  // new bump event received -> activate motors and sound
+  if (newBumpHitEvent()) {
+    
+    // send bump to vest       
+    float x = map(bumpX, avatarLeft, avatarRight, vestLeft, vestRight);
+    float y = map(bumpY, 0.0, avatarTop, 0.0, vestTop);
+    if (x < vestLeft / 3.0 * 2.0) {        // left bump
+      sendToHapticVest( 5, bumpStrength);
+      sendToHapticVest( 6, bumpStrength);
+      sendToHapticVest( 9, bumpStrength);
+      sendToHapticVest(10, bumpStrength);
+    } else if (x > vestRight / 3.0 ) {      // right bump
+      sendToHapticVest( 0, bumpStrength);
+      sendToHapticVest( 7, bumpStrength);
+      sendToHapticVest( 8, bumpStrength);
+      sendToHapticVest(11, bumpStrength);
+    } else {                   // center bump
+      sendToHapticVest(12, bumpStrength);
+      sendToHapticVest(13, bumpStrength);
+      sendToHapticVest(14, bumpStrength);
+      sendToHapticVest(15, bumpStrength);
+    }
+    
+    // send bump event to the sound system
+    sendSoundChangeEvent(HIT, dist(centerX, centerY, bumpX, bumpY), 
+                              getAngle(centerX, centerY, bumpX, bumpY));
+  } 
+  
+  // turn off motors
+  else
+    endBumpHitEvent();
 }
 
 void setupOscSenders() {
@@ -231,21 +318,13 @@ void oscEvent(OscMessage message) {
     // *** receive CAVE velocity *********************************************************************
     //     use the velocity to change the heartbeat sound trigger speed
     else if (message.addrPattern().equals(caveUserVelocityPattern) && message.checkTypetag("f")) {
-      float velocity = message.get(0).floatValue();
+      caveUserVel = message.get(0).floatValue();
       
       if (DEBUG)
-        println(" " + velocity);
-        
-      // send to sound system (heartbeat)
-      int now = millis();
-      // TODO: maybe average last n velocity values to get smoother heartbeat changes
-      int heartbeat = int(map(velocity, 0.0, maxVelocity, minHearbeat, maxHeartbeat));
-      if (float(now - lastHearbeat) > 1.0 / float(heartbeat) * 60000) {
-        sendSoundChangeEvent(VELOCITY, caveUserSoundDistance, caveUserSoundAngle);
-        lastHearbeat = now;
-      }
+        println(" " + caveUserVel);
     }
     
+    /*
     // *** receive CAVE touch event ******************************************************************
     //     this is a on/off message to start the touch and end it
     //     enable/disable the touch sound 
@@ -265,6 +344,7 @@ void oscEvent(OscMessage message) {
         sendResetToHapticVest();
       }
     }
+    */
     
     // *** receive CAVE touch positions **************************************************************
     //     map the touch positions to vest positions and activate/deactivate the motors accordingly
@@ -313,6 +393,7 @@ void oscEvent(OscMessage message) {
                                     getAngle(centerX, centerY, touchX, touchY));
       }
     
+    /*
     // *** receive CAVE hit positions **************************************************************
     //     activate the motors next to the hit positions
     //     trigger the hit sound
@@ -339,7 +420,9 @@ void oscEvent(OscMessage message) {
       else
         endBumpHitEvent();
     }
+    */
     
+    /*
     // *** receive CAVE bump positions **************************************************************
     //     activate some motors for a certain period of time to make the bump a haptic experience
     //     trigger the bump sound
@@ -381,11 +464,12 @@ void oscEvent(OscMessage message) {
       // turn off motors
       else
         endBumpHitEvent();
+    */
     } else if (DEBUG) {
       println(" BUT COULD NOT BE INTERPRETED!!!");
     }
   } 
-}
+//}
 
 
 int getBumpHitMotorId(float vx, float vy, float vz) {
@@ -421,6 +505,15 @@ int getBumpHitMotorId(float vx, float vy, float vz) {
     else
       return 15;
   }
+}
+
+void triggerHeartbeat() {
+  int now = millis();
+  int heartbeat = int(map(abs(caveUserVel), 0.0, maxVelocity, minHearbeat, maxHeartbeat));
+  if (float(now - lastHearbeat) > 1.0 / float(heartbeat) * 60000) {
+    sendSoundChangeEvent(VELOCITY, caveUserSoundDistance, caveUserSoundAngle);
+    lastHearbeat = now;
+  } 
 }
 
 float getAngle(float x1, float y1, float x2, float y2) {
