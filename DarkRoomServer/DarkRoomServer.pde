@@ -163,7 +163,7 @@ void setupSounds() {
       if (isSystemOn) {
         soundEvents[i].setIsOn(true);      
         // send to sound system (caveuser)
-        updateCaveUserSoundPosition(caveUserXdefault, caveUserYdefault);
+        updateSoundPosition(POSITION, caveUserXdefault, caveUserYdefault);
       } else
         soundEvents[i].setIsOn(false);
     } else if (i == TOUCH) {
@@ -185,7 +185,7 @@ void activity(int onState) {
       if (soundEvents[i].isLooped()) {
         soundEvents[i].setIsOn(true);
         // send to sound system (caveuser)
-        updateCaveUserSoundPosition(caveUserXdefault, caveUserYdefault);
+        updateSoundPosition(POSITION, caveUserXdefault, caveUserYdefault);
       }
     }
   } else if (onState == 0) {                         // turn system and looped sounds off
@@ -255,8 +255,7 @@ void hit(float hitX, float hitY, float hitZ) {
       sendToHapticVest(getBumpHitMotorId(hitX, hitY, hitZ), hitStrength); 
         
       // send hit event to the sound system
-      sendSoundChangeEvent(HIT, dist(centerX, centerY, hitX, hitY), 
-                                getAngle(centerX, centerY, hitX, hitY));
+      updateSoundPosition(HIT, hitX, hitY);
     } 
     
     // turn off motors
@@ -295,8 +294,7 @@ void bump(float bumpX, float bumpY) {
         sendToHapticVest(15, bumpStrength);
       }
       // send bump event to the sound system
-      sendSoundChangeEvent(BUMP, dist(centerX, centerY, bumpX, bumpY), 
-                                getAngle(centerX, centerY, bumpX, bumpY));
+      updateSoundPosition(BUMP, bumpX, bumpY);
                                 
     // turn off motors
     } else
@@ -313,7 +311,7 @@ void position(float caveUserX, float caveUserY) {
       println("-> RECEIVED " + caveUserPositionPattern + " ff - " + caveUserX + " " + caveUserY);
           
     // send to sound system (caveuser)
-    updateCaveUserSoundPosition(caveUserX, caveUserY);
+    updateSoundPosition(POSITION, caveUserX, caveUserY);
   }
 }
 
@@ -369,8 +367,7 @@ void touching(float touchX, float touchY, float touchZ) {
     sendToHapticVest(getBumpHitMotorId(touchX, touchY, touchZ), touchStrength); 
 
     // send touch position (x,y) to sound system
-    sendSoundChangeEvent(TOUCH, dist(centerX, centerY, touchX, touchY), 
-                                getAngle(centerX, centerY, touchX, touchY));
+    updateSoundPosition(TOUCH, touchX, touchY);
   }
 }
 
@@ -424,13 +421,13 @@ void sendSoundEventOff(int interaction) {
     }
     soundOSC.send(message, soundNetAddress);
 }
-
-void updateCaveUserSoundPosition(float cux, float cuy) {
+                                
+void updateSoundPosition(int interaction, float cux, float cuy) {
   float x = map(cux, caveLeft, caveRight, -1.0, 1.0);
   float y = map(cuy, caveLeft, caveRight, -1.0, 1.0);
   caveUserSoundDistance = dist(centerX, centerY, x, y);
   caveUserSoundAngle = getAngle(centerX, centerY, x, y); 
-  sendSoundChangeEvent(POSITION, caveUserSoundDistance, caveUserSoundAngle);
+  sendSoundChangeEvent(interaction, caveUserSoundDistance, caveUserSoundAngle);
 }
 
 int getBumpHitMotorId(float vx, float vy, float vz) {
@@ -472,7 +469,7 @@ void triggerHeartbeat() {
   int now = millis();
   int heartbeat = int(map(abs(caveUserVel), 0.0, maxVelocity, minHearbeat, maxHeartbeat));
   if (float(now - lastHearbeat) > 1.0 / float(heartbeat) * 60000) {
-    sendSoundChangeEvent(VELOCITY, caveUserSoundDistance, caveUserSoundAngle);
+    updateSoundPosition(VELOCITY, caveUserSoundDistance, caveUserSoundAngle);
     lastHearbeat = now;
   } 
 }
