@@ -18,8 +18,8 @@ final boolean DEBUG = true;
 // ==================================================================================
 // COORDINATE SYSTEMS:
 //   CAVE:   3D right-handed cartesian coordinate system
-//           X: right to left axis; Y: depth axis into the screen; 
-//           Z: up axis counter-clockwise rotation
+//           X: left to right axis; Y: bottom to top; 
+//           Z: towards the screen
 //           origin is on the floor in the center 
 //           units are given in centimeters with 2000 cm in each dimension 
 //           w/l: [-1000, 1000] h: [0, 2000]
@@ -38,7 +38,7 @@ final boolean DEBUG = true;
 //           origin is the bottom center
 //           width and height are 52 and 62,5 centimeters: [-25.1, 25.1] and [0, 62.5]
 
-float caveLeft = -1000.0, caveRight = 1000.0, caveBottom = 0.0, caveTop = 2000.0, // cm
+float caveLeft = -1350.0, caveRight = 1350.0, caveBottom = 0.0, caveTop = 2700.0, // cm
       roomWidth = 1024.0, roomHeight = 768.0,                                     // px
       soundRadius = 1.0,                                                          // normalized
       avatarLeft = -50.0, avatarRight = 50.0, avatarTop = 130.0,                  // cm
@@ -235,6 +235,7 @@ void touch(int touchOn) {
     } else if (touchOn == 0) {
       isTouchOn = false;
       soundEvents[TOUCH].setIsOn(false);
+      sendSoundEventOff(TOUCH);
       sendResetToHapticVest();
     }
   }
@@ -260,7 +261,7 @@ void hit(float hitX, float hitY, float hitZ) {
     
     // turn off motors
     else
-      endBumpHitEvent();
+      continueBumpHitEvent();
   }
 }
 
@@ -298,7 +299,7 @@ void bump(float bumpX, float bumpY) {
                                 
     // turn off motors
     } else
-      endBumpHitEvent();
+      continueBumpHitEvent();
   }
 }
 
@@ -465,6 +466,25 @@ int getBumpHitMotorId(float vx, float vy, float vz) {
   }
 }
 
+// start a new bump/hit if it is not on
+boolean newBumpHitEvent() {
+  if (!bumpHitOn) {
+    bumpHitBegin = millis();
+    bumpHitOn = true;
+    return true;
+  }
+  return false;
+}
+
+// continue bump/hit vibrations until  bumpHitLength ms
+void continueBumpHitEvent() {
+    if (millis() - bumpHitBegin > bumpHitLength) {    
+      sendResetToHapticVest();
+      bumpHitOn = false;
+      bumpHitBegin = 0;    
+    }
+}
+
 void triggerHeartbeat() {
   int now = millis();
   int heartbeat = int(map(abs(caveUserVel), 0.0, maxVelocity, minHearbeat, maxHeartbeat));
@@ -477,31 +497,6 @@ void triggerHeartbeat() {
 float getAngle(float x1, float y1, float x2, float y2) {
   return 180.0 + atan2((y1 - y2), (x1 - x2)) * 180.0 / PI;
 } 
-
-boolean newBumpHitEvent() {
-  if (!bumpHitOn) {
-    resetBumpOrHit();
-    bumpHitBegin = millis();
-    bumpHitOn = true;
-    return true;
-  }
-  return false;
-}
-
-void endBumpHitEvent() {
-    // end bump vibrations after bumpHitLength ms
-    if (millis() - bumpHitBegin > bumpHitLength) {
-      resetBumpOrHit();  
-      bumpHitBegin = -1;    
-    }
-}
-
-// resets currently running bump or hit, starts a new one
-void resetBumpOrHit() {
-    if (bumpHitBegin != -1)
-      sendResetToHapticVest();
-    bumpHitBegin = millis(); 
-}
 
 
 
