@@ -39,7 +39,7 @@ final boolean DEBUG = true;
 //           width and height are 52 and 62,5 centimeters: [-25.1, 25.1] and [0, 62.5]
 
 float caveLeft = -1350.0, caveRight = 1350.0, caveBottom = 0.0, caveTop = 2700.0, // cm
-      roomWidth = 1024.0, roomHeight = 768.0,                                     // px
+      roomWidth = 640.0, roomHeight = 480.0,                                     // px
       soundRadius = 1.0,                                                          // normalized
       avatarLeft = -50.0, avatarRight = 50.0, avatarTop = 130.0,                  // cm
       avatarBack = -10.0, avatarFront = 10.0,                                     // cm
@@ -59,7 +59,7 @@ final int CAVE_LISTENER_PORT = 2380;
 
 final int BLUETOOTH_PORT = 0; // 0: COM1 (Windows) // 1: COM3 (Windows)
 
-int minHearbeat = 50, maxHeartbeat = 140;                            // in beats per minute
+int minHearbeat = 50, maxHeartbeat = 100;                            // in beats per minute
 
 int bumpHitLength = 300; // 300 milliseconds
 
@@ -107,7 +107,7 @@ boolean bumpHitOn = false;
 
 // bluetooth connection
 Serial bluetooth;
-int baudRate = 115200;
+int baudRate = 57600;
 int maxMotor = 15;
 int maxStrength = 63;
 
@@ -377,7 +377,7 @@ void sendToHapticVest(int motor, int strength) {
   if (motor < maxMotor && strength < maxStrength) {
     char motorFlag = char(65 + motor);
     char strengthFlag = char(48 + strength); 
-    String command = "p" + motorFlag + strengthFlag;    // TODO: add explicit LR or CF if necessary - first test with haptic vest
+    String command = "p" + motorFlag + strengthFlag + "\n";    // TODO: add explicit LR or CF if necessary - first test with haptic vest
     if (DEBUG)
       println("Sending command " + command);
     bluetooth.write(command);
@@ -386,7 +386,7 @@ void sendToHapticVest(int motor, int strength) {
 
 // send reset motor control message
 void sendResetToHapticVest() {
-  String command = "r";    // TODO: add explicit LR or CF if necessary - first test with haptic vest
+  String command = "r"; 
   if (DEBUG)
     println("Sending command " + command);
   bluetooth.write(command);
