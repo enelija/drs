@@ -12,16 +12,18 @@ import oscP5.*;
 import netP5.*;
 import processing.serial.*;
 
-final boolean DEBUG = true;
-final boolean WRITE_TO_FILE = false;
-final boolean HEARTBEAT_OFF = false;
-
-// set to true if smartphone is used instead of haptic vest compass sensor
-final boolean ORIENTATION_FROM_VEST = true;  
-final boolean TEST_WITHOUT_VEST = false;  
-
 // CONFIGURATION
 // ==================================================================================
+// generate debug output: write it to a file or to the console
+final boolean DEBUG = true;
+final boolean WRITE_TO_FILE = false;
+// turn heartbeat off for testing other sounds better
+final boolean HEARTBEAT_OFF = false;
+// receive orientation from vest or via OSC (smartphone)
+final boolean ORIENTATION_FROM_VEST = true;  
+// test without the vest turns all bluetooth communication off (no InvocationTargetException for OSC TCP)
+final boolean TEST_WITHOUT_VEST = false;  
+
 // COORDINATE SYSTEMS:
 //   CAVE:   3D right-handed cartesian coordinate system
 //           X: left to right axis; Y: bottom to top; 
@@ -52,9 +54,11 @@ float caveLeft = -1000.0, caveRight = 1000.0, caveFront = -1000.0,
       avatarBack = -10.0, avatarFront = 10.0,                                     // cm
       vestLeft = -25.1, vestRight = 25.1, vestBottom = 0.0, vestTop = 62.5;       // cm
 
+// set IP for the CAVE
 String caveIP = "127.0.0.1";
 String localIP = "127.0.0.1";
 
+// in- and outbound ports for all TCP and UDP messages
 final int SOUND_LISTENER_PORT = 12344;
 final int SOUND_SENDER_PORT = 12345;
 final int TRACKING_LISTENER_PORT = 12347;
@@ -64,17 +68,23 @@ final int CAVE_LISTENER_TCP_PORT = 2378;
 final int CAVE_SENDER_PORT = 2379;
 final int CAVE_LISTENER_PORT = 2380;
 
+// bluetooth port
 final int BLUETOOTH_PORT = 0;               // 0: COM1 (Windows) // 1: COM3 (Windows)
 
+// heartbeat range for slow and fast movement
 int minHearbeat = 50, maxHeartbeat = 100;   // in beats per minute
 
+// how long to activate motors for a bump
 int bumpHitLength = 300;                    // in milliseconds
 
+// motor strength for touch/hit/bump
 int touchStrength = 30;
 int bumpStrength = 50;
 int hitStrength = 63;
 // ==================================================================================
 
+// GLOBAL VARIABLES - DO NOT CHANGE!
+// ==================================================================================
 // sound
 final int POSITION = 0;
 final int VELOCITY = 1;
@@ -89,6 +99,7 @@ boolean isTouchOn = false, isSystemOn = true /* false // false is defaut, true i
 // OSC communication
 OscP5 soundOSC, trackingOSC, orientationTrackingOSC, caveOSC, caveOSCtcp; 
 NetAddress caveNetAddress, soundNetAddress;
+PrintWriter output;
 
 String soundPattern = "/SonicCave";                                  // UDP
 String trackingPattern = "/tracking";                                // UDP
@@ -113,8 +124,6 @@ int lastHearbeat = 0;
 int bumpHitBegin = 0;
 boolean bumpHitOn = false;
 
-PrintWriter output;
-
 // bluetooth connection
 Serial bluetooth;
 int baudRate = 57600;
@@ -122,6 +131,7 @@ int maxMotor = 15;
 int maxStrength = 63;
 int asciiOffset0 = 48;
 int asciiOffsetA = 65;
+// ==================================================================================
 
 void setup() {
   setupWriter();  
@@ -131,6 +141,7 @@ void setup() {
   setupSounds();
 }
 
+// main loop
 void draw() {
   if (ORIENTATION_FROM_VEST && !TEST_WITHOUT_VEST)
     receiveFromHapticVest();  // receive bluetooth orientation messages from the haptic vest 
@@ -248,15 +259,19 @@ void tracking(float roomUserX, float roomUserY, float roomUserO) {
       debugStr("-> RECEIVED " + trackingPattern + " fff - " + roomUserX + " " + roomUserY + " " + roomUserO);
 
     // send position to CAVE
-    OscMessage positionToCave = new OscMessage(roomPersonPositionPattern);
-    positionToCave.add(map(roomUserX, 0.0, roomWidth, caveLeft, caveRight));
-    positionToCave.add(map(roomUserY, 0.0, roomHeight, caveLeft, caveRight));
-    caveOSC.send(positionToCave, caveNetAddress);
+    OscMessage message = new OscMessage(roomPersonPositionPattern);
+    message.add(map(roomUserX, 0.0, roomWidth, caveLeft, caveRight));
+    message.add(map(roomUserY, 0.0, roomHeight, caveLeft, caveRight));
+    caveOSC.send(message, caveNetAddress);
+    debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " " +
+             map(roomUserX, 0.0, roomWidth, caveLeft, caveRight) + " " +
+             map(roomUserY, 0.0, roomHeight, caveLeft, caveRight));
     
     // send orientation to CAVE
-    OscMessage orientationToCave = new OscMessage(roomPersonOrientationPattern);
-    orientationToCave.add(roomUserO);
-    caveOSC.send(orientationToCave, caveNetAddress); 
+    message = new OscMessage(roomPersonOrientationPattern);
+    message.add(roomUserO);
+    caveOSC.send(message, caveNetAddress); 
+    debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + roomUserO);
   }
 }
 
@@ -269,11 +284,10 @@ void trackingOrientation(int roomUserYaw, int roomUserRoll, int roomUserPitch) {
              " " + roomUserRoll + " " + roomUserPitch);
     
     // send orientation to CAVE
-    OscMessage orientationToCave = new OscMessage(roomPersonOrientationPattern);
-    orientationToCave.add(float(roomUserYaw));
-    caveOSC.send(orientationToCave, caveNetAddress); 
-    debugStr("<- SENDING " + roomPersonOrientationPattern + " " + orientationToCave.typetag() + 
-             " - " + roomUserYaw);
+    OscMessage message = new OscMessage(roomPersonOrientationPattern);
+    message.add(float(roomUserYaw));
+    caveOSC.send(message, caveNetAddress); 
+    debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " - " + roomUserYaw);
   }
 }
 
@@ -285,10 +299,14 @@ void trackingPosition(float roomUserX, float roomUserY) {
     debugStr("-> RECEIVED " + trackingPattern + " ff - " + roomUserX + " " + roomUserY);
 
     // send position to CAVE
-    OscMessage positionToCave = new OscMessage(roomPersonPositionPattern);
-    positionToCave.add(map(roomUserX, 0.0, roomWidth, caveLeft, caveRight));
-    positionToCave.add(map(roomUserY, 0.0, roomHeight, caveLeft, caveRight));
-    caveOSC.send(positionToCave, caveNetAddress);
+    OscMessage message = new OscMessage(roomPersonPositionPattern);
+    message.add(map(roomUserX, 0.0, roomWidth, caveLeft, caveRight));
+    message.add(map(roomUserY, 0.0, roomHeight, caveLeft, caveRight));
+    caveOSC.send(message, caveNetAddress);
+    
+    debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " - " + 
+             map(roomUserX, 0.0, roomWidth, caveLeft, caveRight) + " " +
+             map(roomUserY, 0.0, roomHeight, caveLeft, caveRight));
   }
 }
 
@@ -440,9 +458,6 @@ void touching(float touchX, float touchY, float touchZ) {
     // send touch coordinates to vest -> map to motors
     sendResetToHapticVest();
     sendToHapticVest(getBumpHitMotorId(touchX, touchY, touchZ), touchStrength); 
-
-    // send touch position (x,y) to sound system
-    //updateSoundPosition(TOUCH, touchX, touchY);
   }
 }
 
@@ -466,9 +481,11 @@ void receiveFromHapticVest() {
         roomUserO = float(orientation);
         
         // send orientation to CAVE
-        OscMessage orientationToCave = new OscMessage(roomPersonOrientationPattern);
-        orientationToCave.add(roomUserO);
-        caveOSC.send(orientationToCave, caveNetAddress);
+        OscMessage message = new OscMessage(roomPersonOrientationPattern);
+        message.add(roomUserO);
+        caveOSC.send(message, caveNetAddress);
+        
+        debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " - " + roomUserO);
       }
     } 
   }
@@ -518,10 +535,10 @@ void sendSoundChangeEvent(int interaction, float distance, float angle) {
     message.add(soundEvents[interaction].getVolume());
     message.add(soundEvents[interaction].getDistance());
     message.add(soundEvents[interaction].getAngle());
+    soundOSC.send(message, soundNetAddress);
     debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + 
           " - " + soundEvents[interaction].getVolume() + " " + 
           soundEvents[interaction].getDistance() +  " " + soundEvents[interaction].getAngle());
-    soundOSC.send(message, soundNetAddress);
 }
 
 // send sound event off to sound system
@@ -530,8 +547,8 @@ void sendSoundEventOff(int interaction) {
     message.add(0.0);
     message.add(0.0);
     message.add(0.0);
-    debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " - 0.0 0.0 0.0");
     soundOSC.send(message, soundNetAddress);
+    debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " - 0.0 0.0 0.0");
 }
                                 
 void updateSoundPosition(int interaction, float cux, float cuy) {
@@ -610,12 +627,8 @@ float getAngle(float x1, float y1, float x2, float y2) {
 } 
 
 void debugStr(String dStr) {
-  if (DEBUG) {
-    if (WRITE_TO_FILE)
-      output.println(dStr);
-    else
-      println(dStr);
-  }
+  if (DEBUG) 
+    printStr(dStr);
 }
 
 void printStr(String pStr) {
