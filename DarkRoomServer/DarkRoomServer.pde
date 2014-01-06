@@ -18,11 +18,48 @@ import processing.serial.*;
 final boolean DEBUG = false;
 final boolean WRITE_TO_FILE = false;
 // turn heartbeat off for testing other sounds better
-final boolean HEARTBEAT_OFF = false;
+final boolean HEARTBEAT_OFF = true;
 // receive orientation from vest or via OSC (smartphone)
 final boolean ORIENTATION_FROM_VEST = true;  
 // test without the vest turns all bluetooth communication off (no InvocationTargetException for OSC TCP)
 final boolean TEST_WITHOUT_VEST = false;  
+
+// use false here if the activity on/off event is sent by the CAVE
+boolean isSystemOn = true; 
+
+// set IP for the CAVE
+String caveIP = "127.0.0.1";
+String localIP = "127.0.0.1";
+
+// in- and outbound ports for all TCP and UDP messages
+final int SOUND_LISTENER_PORT = 12344;
+final int SOUND_SENDER_PORT = 12345;
+final int TRACKING_LISTENER_PORT = 12347;
+final int ORIENTATION_TRACKING_LISTENER_PORT = 12350;
+final int CAVE_SENDER_TCP_PORT = 2377;
+final int CAVE_LISTENER_TCP_PORT = 2378;
+final int CAVE_SENDER_PORT = 2379;
+final int CAVE_LISTENER_PORT = 2380;
+
+// OSC message patterns
+final String soundPattern = "/SonicCave";                                  // UDP
+final String trackingPattern = "/tracking";                                // UDP
+final String orientationTrackingPattern = "/ori";                          // UDP
+final String caveUserActivityPattern = "/cave_person/activity";            // TCP
+final String caveUserPositionPattern = "/cave_person/position";            // UDP
+final String caveUserVelocityPattern = "/cave_person/velocity";            // UDP
+final String caveUserTouchPattern = "/cave_person/touch";                  // TCP
+final String caveUserTouchingPattern = "/cave_person/touching";            // UDP
+final String caveUserHitPattern = "/cave_person/hit";                      // TCP
+final String caveUserBumpPattern = "/cave_person/bump";                    // TCP
+final String roomPersonPositionPattern = "/room_person/position";          // UDP
+final String roomPersonOrientationPattern = "/room_person/orientation";    // UDP
+
+// bluetooth port
+final int BLUETOOTH_PORT = 0;               // 0: COM1 (Windows) // 1: COM3 (Windows)
+int baudRate = 57600;
+// asciiOffsetO is the offset for the orientation flag, acsiiOffsetA is the offset for the motor flag
+int maxMotor = 15 maxStrength = 63, asciiOffset0 = 48, asciiOffsetA = 65;
 
 // COORDINATE SYSTEMS:
 //   CAVE:   3D right-handed cartesian coordinate system
@@ -81,7 +118,7 @@ float caveLeft = -1000.0, caveRight = 1000.0, caveFront = -1000.0,
       caveBack = 1000.0, caveBottom = 0.0, caveTop = 2000.0,                      // cm
       roomLeft = 1500.0, roomRight = -1500.0,                                     // looking from back to front, right is negative
       roomFront = 0.0, roomBack = 3000.0,                                         // cm
-      vestLeft = -26.0, vestRight = 26.0, vestBottom = 0.0, vestTop = 62.5.0,           
+      vestLeft = -26.0, vestRight = 26.0, vestBottom = 0.0, vestTop = 62.5,           
       vestBack = -10.0, vestFront = 10.0;                                         // cm
 
 // vest motor coordinates relative to the bottom center point of the vest (origin of the vest and the avatar)
@@ -141,26 +178,8 @@ int[][] hitPatterns = {
   {14, 15, 16},              // motor id 14
   {13, 14, 15}};             // motor id 15
 
-// set IP for the CAVE
-String caveIP = "127.0.0.1";
-String localIP = "127.0.0.1";
-
-// in- and outbound ports for all TCP and UDP messages
-final int SOUND_LISTENER_PORT = 12344;
-final int SOUND_SENDER_PORT = 12345;
-final int TRACKING_LISTENER_PORT = 12347;
-final int ORIENTATION_TRACKING_LISTENER_PORT = 12350;
-final int CAVE_SENDER_TCP_PORT = 2377;
-final int CAVE_LISTENER_TCP_PORT = 2378;
-final int CAVE_SENDER_PORT = 2379;
-final int CAVE_LISTENER_PORT = 2380;
-
-// bluetooth port
-final int BLUETOOTH_PORT = 0;               // 0: COM1 (Windows) // 1: COM3 (Windows)
-
 // heartbeat range for slow and fast movement
 int minHearbeat = 50, maxHeartbeat = 100;   // in beats per minute
-
 // ==================================================================================
 
 // GLOBAL VARIABLES - DO NOT CHANGE!
@@ -174,25 +193,13 @@ final int HIT = 4;
 final int NUMBER_INTERACTIONS = 5;
 float [] volumes = {1.0, 1.0, 1.0, 1.0, 1.0};
 SpatialSoundEvent soundEvents[] = new SpatialSoundEvent[NUMBER_INTERACTIONS];
-boolean isTouchOn = false, isSystemOn = true /* false // false is defaut, true is for testing only*/;
+boolean isTouchOn = false;
 
 // OSC communication
 OscP5 soundOSC, trackingOSC, orientationTrackingOSC, caveOSC, caveOSCtcp; 
 NetAddress caveNetAddress, soundNetAddress;
 PrintWriter output;
 
-String soundPattern = "/SonicCave";                                  // UDP
-String trackingPattern = "/tracking";                                // UDP
-String orientationTrackingPattern = "/ori";                          // UDP
-String caveUserActivityPattern = "/cave_person/activity";            // TCP
-String caveUserPositionPattern = "/cave_person/position";            // UDP
-String caveUserVelocityPattern = "/cave_person/velocity";            // UDP
-String caveUserTouchPattern = "/cave_person/touch";                  // TCP
-String caveUserTouchingPattern = "/cave_person/touching";            // UDP
-String caveUserHitPattern = "/cave_person/hit";                      // TCP
-String caveUserBumpPattern = "/cave_person/bump";                    // TCP
-String roomPersonPositionPattern = "/room_person/position";          // UDP
-String roomPersonOrientationPattern = "/room_person/orientation";    // UDP
 float centerX = 0.0, centerY = 0.0, 
       roomUserX = 0.0, roomUserY = 0.0, roomUserO = 0.0,
       caveUserX = 0.0, caveUserY = 0.0, caveUserVel = 0.0, 
@@ -201,18 +208,11 @@ float centerX = 0.0, centerY = 0.0,
       caveUserSoundDistance = 0.0, caveUserSoundAngle = 0.0;
 int lastHearbeat = 0;
 
-int bumpBegin = 0, hitBegin = 0;
+int bumpBegin = 0, hitBegin = 0, bumpArea = 0, hitIdx = 0;
 boolean bumpOn = false, hitOn = false;
-int bumpArea = 0, hitIdx = 0;
 
 // bluetooth connection
 Serial bluetooth;
-int baudRate = 57600;
-int maxMotor = 15;
-int maxStrength = 63;
-int asciiOffset0 = 48;
-int asciiOffsetA = 65;
-  
 // ==================================================================================
 
 void setup() {
@@ -578,16 +578,14 @@ void receiveFromHapticVest() {
         int orientation = int(degree) - asciiOffset0;
         
         if (orientation < 0 || orientation > 360)
-          debugStr("~~~~~~ THIS SHOULD NOT HAPPEN - orientation values is: " + roomUserO + " ~~~~~~"); 
-      
-        roomUserO = float(orientation);
-        
+          debugStr("~~~~~~ THIS SHOULD NOT HAPPEN - orientation values is: " + orientation + " ~~~~~~"); 
+              
         // send orientation to CAVE
         OscMessage message = new OscMessage(roomPersonOrientationPattern);
-        message.add(roomUserO);
+        message.add(float(orientation));
         caveOSC.send(message, caveNetAddress);
         
-        debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " - " + roomUserO);
+        debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " - " + float(orientation));
       }
     } 
   }
