@@ -15,7 +15,7 @@ import processing.serial.*;
 // CONFIGURATION
 // ==================================================================================
 // generate debug output: write it to a file or to the console
-final boolean DEBUG = true;
+final boolean DEBUG = false;
 final boolean WRITE_TO_FILE = false;
 // turn heartbeat off for testing other sounds better
 final boolean HEARTBEAT_OFF = false;
@@ -32,13 +32,13 @@ final boolean TEST_WITHOUT_VEST = false;
 //           units are given in centimeters with 2000 cm in each dimension 
 //           w/l: [-1000, 1000] h: [0, 2000]
 //   ROOM:   2D cartesian coordinate system
-//           origin is upper/left coordinate of the camera (one room corner)
-//           units given in pixels with 1024 x 768 pixels 
-//           w: [0, 1024] h: [0, 768]
+//           origin is front center
+//           units given in cm with 300 cm in each dimension 
+//           w: [1500, -1500] d: [0, 3000]
 //   SOUND:  2D polar coordinate system
 //           origin is in the center
 //           radius is 1.0 [0.0, 1.0] in 360 degrees
-//   AVATAR: 3D cartesian coordinate system
+//   AVATAR: 3D cartesian coordinate system -> not used so far 
 //           origin is the hip center (bottom of vest)
 //           width/height/depth are 60.0/170.0/20.0 centimeters: 
 //           [left, right] / [bottom, top] / [back, front]
@@ -79,8 +79,9 @@ final boolean TEST_WITHOUT_VEST = false;
 
 float caveLeft = -1000.0, caveRight = 1000.0, caveFront = -1000.0, 
       caveBack = 1000.0, caveBottom = 0.0, caveTop = 2000.0,                      // cm
-      roomWidth = 640.0, roomHeight = 480.0,                                      // px
-      vestLeft = -26, vestRight = 26, vestBottom = 0.0, vestTop = 62.5,           // cm
+      roomLeft = 1500.0, roomRight = -1500.0,                                     // looking from back to front, right is negative
+      roomFront = 0.0, roomBack = 3000.0,                                         // cm
+      vestLeft = -26.0, vestRight = 26.0, vestBottom = 0.0, vestTop = 62.5.0,           
       vestBack = -10.0, vestFront = 10.0;                                         // cm
 
 // vest motor coordinates relative to the bottom center point of the vest (origin of the vest and the avatar)
@@ -350,12 +351,12 @@ void tracking(float roomUserX, float roomUserY, float roomUserO) {
 
     // send position to CAVE
     OscMessage message = new OscMessage(roomPersonPositionPattern);
-    message.add(map(roomUserX, 0.0, roomWidth, caveLeft, caveRight));
-    message.add(map(roomUserY, 0.0, roomHeight, caveLeft, caveRight));
+    message.add(map(roomUserX, roomLeft, roomRight, caveLeft, caveRight));
+    message.add(map(roomUserY, roomFront, roomBack, caveFront, caveBack));
     caveOSC.send(message, caveNetAddress);
     debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " " +
-             map(roomUserX, 0.0, roomWidth, caveLeft, caveRight) + " " +
-             map(roomUserY, 0.0, roomHeight, caveLeft, caveRight));
+             map(roomUserX, roomLeft, roomRight, caveLeft, caveRight) + " " +
+             map(roomUserY, roomFront, roomBack, caveFront, caveBack));
     
     // send orientation to CAVE
     message = new OscMessage(roomPersonOrientationPattern);
@@ -390,13 +391,13 @@ void trackingPosition(float roomUserX, float roomUserY) {
 
     // send position to CAVE
     OscMessage message = new OscMessage(roomPersonPositionPattern);
-    message.add(map(roomUserX, 0.0, roomWidth, caveLeft, caveRight));
-    message.add(map(roomUserY, 0.0, roomHeight, caveLeft, caveRight));
+    message.add(map(roomUserX, roomLeft, roomRight, caveLeft, caveRight));
+    message.add(map(roomUserY, roomFront, roomBack, caveFront, caveBack));
     caveOSC.send(message, caveNetAddress);
     
-    debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " - " + 
-             map(roomUserX, 0.0, roomWidth, caveLeft, caveRight) + " " +
-             map(roomUserY, 0.0, roomHeight, caveLeft, caveRight));
+    debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " " +
+             map(roomUserX, roomLeft, roomRight, caveLeft, caveRight) + " " +
+             map(roomUserY, roomFront, roomBack, caveFront, caveBack));
   }
 }
 
