@@ -20,9 +20,9 @@ final boolean WRITE_TO_FILE = false;
 // turn heartbeat off for testing other sounds better
 final boolean HEARTBEAT_OFF = false;
 // receive orientation from vest or via OSC (smartphone)
-final boolean ORIENTATION_FROM_VEST = false;  
+final boolean ORIENTATION_FROM_VEST = true;  
 // test without the vest turns all bluetooth communication off (no InvocationTargetException for OSC TCP)
-final boolean TEST_WITHOUT_VEST = true;  
+final boolean TEST_WITHOUT_VEST = false;  
 
 // COORDINATE SYSTEMS:
 //   CAVE:   3D right-handed cartesian coordinate system
