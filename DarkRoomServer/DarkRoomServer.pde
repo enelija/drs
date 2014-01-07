@@ -191,7 +191,7 @@ final int BUMP = 2;
 final int TOUCH = 3;
 final int HIT = 4;
 final int NUMBER_INTERACTIONS = 5;
-float [] volumes = {1.0, 1.0, 1.0, 1.0, 1.0};
+float [] volumes = {1.0, 1.0, 0.4, 1.0, 0.4};
 SpatialSoundEvent soundEvents[] = new SpatialSoundEvent[NUMBER_INTERACTIONS];
 boolean isTouchOn = false;
 
