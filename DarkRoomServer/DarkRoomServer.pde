@@ -59,7 +59,7 @@ final String roomPersonOrientationPattern = "/room_person/orientation";    // UD
 final int BLUETOOTH_PORT = 0;               // 0: COM1 (Windows) // 1: COM3 (Windows)
 int baudRate = 57600;
 // asciiOffsetO is the offset for the orientation flag, acsiiOffsetA is the offset for the motor flag
-int maxMotor = 15 maxStrength = 63, asciiOffset0 = 48, asciiOffsetA = 65;
+int maxMotor = 15, maxStrength = 63, asciiOffset0 = 48, asciiOffsetA = 65;
 
 // COORDINATE SYSTEMS:
 //   CAVE:   3D right-handed cartesian coordinate system
