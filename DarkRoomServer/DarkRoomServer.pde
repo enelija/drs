@@ -59,10 +59,11 @@ final String roomPersonOrientationPattern = "/room_person/orientation";    // UD
 final String roomPersonPattern = "/room_person";                           // TCP  combines position and orientation
 
 // bluetooth port
-final int BLUETOOTH_PORT = 0;               // 0: COM1 (Windows) // 1: COM3 (Windows)
+final int BLUETOOTH_PORT = 1;               // 0: COM1 (Windows) // 1: COM3 (Windows)
 int baudRate = 57600;
 // asciiOffsetO is the offset for the orientation flag, acsiiOffsetA is the offset for the motor flag
 int maxMotor = 15, maxStrength = 63, asciiOffset0 = 48, asciiOffsetA = 65;
+char orientPatt = 'h';
 
 // COORDINATE SYSTEMS:
 //   CAVE:   3D right-handed cartesian coordinate system
@@ -421,7 +422,7 @@ void sendRoomUserDataToCave() {
     
     debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " " +
              map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight) + " " +
-             map(roomUser[Y], roomFront, roomBack, caveFront, caveBack) + roomUser[O]);
+             map(roomUser[Y], roomFront, roomBack, caveFront, caveBack) + " " + roomUser[O]);
              
     timestamp = millis();
   } 
@@ -589,19 +590,18 @@ int getNearestMotorID(float x, float y, float z) {
   return id + 1;
 }
 
-
 // receive orientation values from the compass on the haptic vest
-// "o0", ... "oA", "aB", ... "op" 
+// "hXXX" with XXX is the degree in 10th degrees
 void serialEvent(Serial p) {
-  String command = p.readString(); 
-  debugStr("RECEIVED FROM SERIAL: " + p);
-  if (command.charAt(0) == 'o') {
-    int orientation = int(command.substring(1));
-    
-    if (orientation < 0 || orientation > 360)
-      debugStr("~~~~~~ THIS SHOULD NOT HAPPEN - orientation values is: " + orientation + " ~~~~~~"); 
-          
-    roomUser[O] = float(orientation);
+  String[] cmd = p.readString().split("\n");
+  if (cmd.length > 0 && cmd[0].length() > 1 && cmd[0].charAt(cmd[0].length() - 1) == '\r') {
+    String command = cmd[0].trim(); 
+    debugStr("-> RECEIVED FROM SERIAL: " + cmd);
+    if (command.charAt(0) == orientPatt) {
+      float o = float(Integer.parseInt(command.substring(1))) / 10.0f;
+      debugStr("  - received orientation " + o);
+      roomUser[O] = o;
+    }
   }
 }
 
