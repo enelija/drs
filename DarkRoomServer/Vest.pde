@@ -73,22 +73,22 @@ class Vest {
   int[] hitDurations = {100, 60};            // in ms
   int hitStep = 0;                           // current bump animation step
   int[][] hitPatterns = {
-          {0, 1, 2},                // motor id 0
-          {1, 2, 0},                // motor id 1
-          {2, 1, 0},                // motor id 2
-          {3, 4, 5},                // motor id 3
-          {4, 5, 3},                // motor id 4
-          {5, 3, 4},                // motor id 5
-          {6, 9, 15},               // motor id 6
-          {7, 8, 15},               // motor id 7
-          {8, 15, 7},               // motor id 8
-          {9, 6, 15},               // motor id 9
-          {10, 4, 5},               // motor id 10
-          {11, 0, 1},               // motor id 11
-          {12, 13, 14},             // motor id 12
-          {13, 14, 12},             // motor id 13
-          {14, 15, 13},             // motor id 14
-          {15, 14, 13}};            // motor id 15
+          {0, 1, 2, 0, 1, 2},                // motor id 0
+          {1, 2, 0, 1, 2, 0},                // motor id 1
+          {2, 1, 0, 2, 1, 0},                // motor id 2
+          {3, 4, 5, 3, 4, 5},                // motor id 3
+          {4, 5, 3, 4, 5, 3},                // motor id 4
+          {5, 3, 4, 5, 3, 4},                // motor id 5
+          {6, 9, 15, 6, 9, 15},              // motor id 6
+          {7, 8, 15, 7, 8, 15},              // motor id 7
+          {8, 15, 7, 8, 15, 7},              // motor id 8
+          {9, 6, 15, 9, 6, 15},              // motor id 9
+          {10, 4, 5, 10, 4, 5},              // motor id 10
+          {11, 0, 1, 11, 0, 1},              // motor id 11
+          {12, 13, 14, 12, 13, 14},          // motor id 12
+          {13, 14, 12, 13, 14, 12},          // motor id 13
+          {14, 15, 13, 14, 15, 13},          // motor id 14
+          {15, 14, 13, 15, 14, 13}};         // motor id 15
     
   Serial bluetooth;
   int maxMotorId = 15, maxStrength = 63, asciiOffsetO = 48, asciiOffsetA = 65;
@@ -173,7 +173,6 @@ class Vest {
       
   void updateBump() {
     int now = millis();
-    // bump animation has finished
     if (bumpStep == 2 && now - bumpBegin > bumpDurations[0] + bumpDurations[1]) {  
       resetMotors();  
       bumpOn = false;
@@ -206,8 +205,7 @@ class Vest {
   void triggerHit(int n) {
     resetMotors();  
     for (int i = 0; i < numOfActiveHitMotors; ++i) {
-      debugStr("    hitIdx " + hitIdx + " - n " + n + " - i " + i);
-      activateMotor(hitPatterns[hitIdx][n + i], hitStrengths[n]);
+      activateMotor(hitPatterns[hitIdx][numOfActiveHitMotors * n + i], hitStrengths[n]);
       debugStr(" -> sending HIT with strength " + hitStrengths[n] + 
                " to motor " + hitPatterns[hitIdx][n + i]);
     }
@@ -223,7 +221,7 @@ class Vest {
       triggerHit(0);
       hitStep = 1;
     } else if (hitStep == 1 && now - hitBegin > hitDurations[0]) {
-      triggerHit(0);
+      triggerHit(1);
       hitStep = 2;
     }  
   }
