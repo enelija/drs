@@ -106,22 +106,24 @@ class Vest {
     bluetooth = new Serial(app, Serial.list()[port], baudrate);
   }
   
-  String activateMotor(int motor, int strength) {
+  void activateMotor(int motor, int strength) {
     if (motor <= maxMotorId && strength <= maxStrength) {
       char motorFlag = char(asciiOffsetA + motor);
       char strengthFlag = char(asciiOffsetO + strength); 
       String command = str(motorPatt) + str(motorFlag) + str(strengthFlag) + str(lineFeed);
-      bluetooth.write(command);
-      return command;
+      if (!TEST_WITHOUT_VEST)
+        bluetooth.write(command);
+        
+      debugStr(" -> sending MOTOR command: " + command); 
     }
-    return "";
   }
   
-  String resetMotors() {
+  void resetMotors() {
     String command = str(resetPatt) + str(lineFeed); 
-    bluetooth.write(command);
-    debugStr(" -> sending RESET to motors"); 
-    return command;
+    if (!TEST_WITHOUT_VEST)
+      bluetooth.write(command);
+      
+    debugStr(" -> sending RESET command: " + command); 
   }
   
   void update() {
