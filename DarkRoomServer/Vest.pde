@@ -101,9 +101,11 @@ class Vest {
   boolean bumpOn = false, hitOn = false, isTouchOn = false;
     
   Vest(PApplet app, int port, int baudrate) {
-    for (int i = 0; i < Serial.list().length; ++i) 
-      printStr(Serial.list()[i]); 
-    bluetooth = new Serial(app, Serial.list()[port], baudrate);
+    if (!RUN_WITHOUT_VEST) {
+      for (int i = 0; i < Serial.list().length; ++i) 
+        printStr(Serial.list()[i]); 
+      bluetooth = new Serial(app, Serial.list()[port], baudrate);
+    }
   }
   
   void activateMotor(int motor, int strength) {
@@ -111,7 +113,7 @@ class Vest {
       char motorFlag = char(asciiOffsetA + motor);
       char strengthFlag = char(asciiOffsetO + strength); 
       String command = str(motorPatt) + str(motorFlag) + str(strengthFlag) + str(lineFeed);
-      if (!TEST_WITHOUT_VEST)
+      if (!RUN_WITHOUT_VEST)
         bluetooth.write(command);
         
       debugStr(" -> sending MOTOR command: " + command); 
@@ -120,7 +122,7 @@ class Vest {
   
   void resetMotors() {
     String command = str(resetPatt) + str(lineFeed); 
-    if (!TEST_WITHOUT_VEST)
+    if (!RUN_WITHOUT_VEST)
       bluetooth.write(command);
       
     debugStr(" -> sending RESET command: " + command); 
@@ -243,7 +245,7 @@ class Vest {
   }
   
   void serialEvent(Serial p) {
-    if (!TEST_WITHOUT_VEST && ORIENTATION_FROM_VEST) {
+    if (!RUN_WITHOUT_VEST && ORIENTATION_FROM_VEST) {
       String[] cmd = p.readString().split("\n");
       if (cmd.length > 0 && cmd[0].length() > 1 && cmd[0].charAt(cmd[0].length() - 1) == '\r') {
         String command = cmd[0].trim(); 
@@ -257,9 +259,4 @@ class Vest {
     }
   }
 
-  void testHitBumpTouch() {    
-    printStr("1) test if the motor coordinate position is correctly found for the actual distance");
-    for (int i = 0; i < motors.length; ++i)
-      printStr(str(getNearestMotorID(motors[i].coordinates.x,motors[i].coordinates.y, motors[i].coordinates.z)));    
-  }
 }

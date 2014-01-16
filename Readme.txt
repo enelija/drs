@@ -8,8 +8,8 @@ Installation:
 
 Configuration:
 =========================================================================================
-- See CONFIGURATION section in the beginning of the code: these options are all documented
- in the code and meant for configuring the system
+- Config.pde: these options are all documented in the code and meant for configuring the 
+  system
 
 
 DOCUMENTATION:

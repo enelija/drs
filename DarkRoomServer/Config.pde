@@ -4,30 +4,30 @@ final boolean WRITE_TO_FILE = false;
 // turn heartbeat off for testing other sounds better
 final boolean HEARTBEAT_OFF = false;
 // receive orientation from vest or via OSC (smartphone)
-final boolean ORIENTATION_FROM_VEST = true;  
+final boolean ORIENTATION_FROM_VEST = false;  
 // test without the vest turns all bluetooth communication off (no InvocationTargetException for OSC TCP)
-final boolean TEST_WITHOUT_VEST = false;  
-// only use the cave tcp listener, no senders
-final boolean CAVE_TCP_LISTENER_ONLY = true;
+final boolean RUN_WITHOUT_VEST = true;  
+// only use the tcp for cave communication
+final boolean CAVE_TCP_ONLY = false;
+// send position and orientation in two separate messages (true) or in a single one (false)
+final boolean SEND_ORIENT_POS_SEPARATELY = true;
 
 // use false here if the activity on/off event is sent by the CAVE
 boolean isSystemOn = false; 
 
 // set IP for the CAVE
-String caveIP = "127.0.0.1"; //"10.156.309.151"                    // needed if CAVE_TCP_LISTENER_ONLY = false
+String caveIP = "127.0.0.1"; //"10.0.0.200"; //"10.156.309.151"
 String localIP = "127.0.0.1";
 
-// in- and outbound ports for all TCP and UDP messages
-final int SOUND_LISTENER_PORT = 12344;                  // local
-final int SOUND_SENDER_PORT = 12345;                    // local
-final int TRACKING_LISTENER_PORT = 12347;               // local
-final int ORIENTATION_TRACKING_LISTENER_PORT = 12350;   // local
+// in- and out ports for the cave communication
+final int CAVE_TCP_IN_PORT = 2378;
+final int CAVE_UDP_IN_PORT = 2379;
+final int CAVE_UDP_OUT_PORT = 2380;
 
-// in case this server runs a TCP listener only
-final int CAVE_LISTENER_TCP_PORT = 23781;                // TCP listener
-// in case this server sends TCP and UDP
-final int CAVE_SENDER_PORT = 2379;
-final int CAVE_LISTENER_PORT = 2380;
+// in- and outbound ports for all local UDP communication
+final int SOUND_UDP_OUT_PORT = 12345;                 // local
+final int TRACKING_UDP_IN_PORT = 12347;               // local
+final int ORIENTATION_TRACKING_UDP_IN_PORT = 12350;   // local
 
 // OSC message patterns
 final String soundPattern = "/SonicCave";                                  // UDP
@@ -84,4 +84,3 @@ float caveLeft = -1000.0, caveRight = 1000.0, caveFront = -1000.0,
       roomFront = 0.0, roomBack = 3000.0,                                         // cm
       vestLeft = -26.0, vestRight = 26.0, vestBottom = 0.0, vestTop = 62.5,           
       vestBack = -10.0, vestFront = 10.0;                                         // cm
-      
