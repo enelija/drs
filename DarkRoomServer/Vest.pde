@@ -98,7 +98,7 @@ class Vest {
   char lineFeed = '\n';
    
   int bumpArea = 0, bumpBegin = 0, hitBegin = 0, hitIdx = 0;
-  boolean bumpOn = false, hitOn = false, isTouchOn = false;
+  boolean isBumpOn = false, isHitOn = false, isTouchOn = false;
     
   Vest(PApplet app, int port, int baudrate) {
     if (!RUN_WITHOUT_VEST) {
@@ -129,9 +129,9 @@ class Vest {
   }
   
   void update() {
-    if (bumpOn)
+    if (isBumpOn)
       updateBump();
-    if (hitOn)
+    if (isHitOn)
       updateHit();
   }
 
@@ -170,7 +170,7 @@ class Vest {
   
   void bump(float bumpX, float bumpY) {
     bumpBegin = millis(); 
-    bumpOn = true;
+    isBumpOn = true;
     setBumpArea(bumpX, bumpY);      
     updateBump();
   }
@@ -179,7 +179,7 @@ class Vest {
     int now = millis();
     if (bumpStep == 2 && now - bumpBegin > bumpDurations[0] + bumpDurations[1]) {  
       resetMotors();  
-      bumpOn = false;
+      isBumpOn = false;
       bumpStep = 0;
     } else if (bumpStep == 0) {
       triggerBump(0);
@@ -201,7 +201,7 @@ class Vest {
   
   void hit(float hitX, float hitY, float hitZ) {
     hitBegin = millis(); 
-    hitOn = true;
+    isHitOn = true;
     hitIdx = getNearestMotorID(hitX, hitY, hitZ);
     updateHit();
   }
@@ -219,7 +219,7 @@ class Vest {
     int now = millis();
     if (hitStep == 2 && now - hitBegin > hitDurations[0] + hitDurations[1]) {    
       resetMotors();  
-      hitOn = false;
+      isHitOn = false;
       hitStep = 0;
     } else if (hitStep == 0) {
       triggerHit(0);

@@ -40,6 +40,7 @@ float centerX = 0.0, centerY = 0.0,
       maxVelocity = 100.0,
       caveUserSoundDistance = 0.0, caveUserSoundAngle = 0.0;
 int lastHearbeat = 0,  testTimeStamp = 0, testInterval = 500, testIdCnt = 0;
+boolean isClientConnected = false;
 
 // *************************************************************************************************
 void setup() {
@@ -56,15 +57,20 @@ void setup() {
 
 // *************************************************************************************************
 void draw() {  
-  sendRoomUserDataToCave();
+  
+  checkClients();
+  
+  if (isSystemOn) {
+    sendRoomUserDataToCave();
+      
+    if (!HEARTBEAT_OFF)
+      triggerHeartbeat();
     
-  if (!HEARTBEAT_OFF)
-    triggerHeartbeat();
-  
-  vest.update();
-  
-  if (WRITE_TO_FILE)
-    output.flush();
+    vest.update();
+    
+    if (WRITE_TO_FILE)
+      output.flush();
+  }
 }
 
 // *************************************************************************************************
@@ -127,27 +133,54 @@ void setupSounds() {
   }
 }
 
+// *** activate system turn looped sounds off ******************************************************
+void activateSystem() {
+  isSystemOn = true;
+  for (int i = 0; i < NUMBER_INTERACTIONS; ++i) {
+    if (soundEvents[i].isLooped) {
+      soundEvents[i].isOn = true;
+      // send to sound system (caveuser)
+      updateSoundPosition(POSITION, caveUserXdefault, caveUserYdefault);
+    }
+  }
+}
+
+// *** deactivate system turn looped sounds off ****************************************************
+void deactivateSystem() {
+  isSystemOn = false;
+  for (int i = 0; i < NUMBER_INTERACTIONS; ++i) { 
+    if (soundEvents[i].isLooped)
+      sendSoundEventOff(i);
+  }
+}
+
+// *** check whether the client is connected or not ************************************************
+//     de-/activate the system accordingly
+void checkClients() {
+  int numOfConnectedClients = caveOSCtcp.tcpServer().getClients().length;
+    
+  if (isClientConnected && numOfConnectedClients == 0) {
+    debugStr("-> CLIENT DISCONNECTED - turning system off");
+    
+    isClientConnected = false;
+    deactivateSystem();
+  } else if (!isClientConnected && numOfConnectedClients > 0) {
+    debugStr("-> CLIENT CONNECTED - turning system on");
+    
+    isClientConnected = true;
+    activateSystem();
+  }
+}
+  
 // *** receive CAVE person activity ****************************************************************
 //     to start / stop the system 
 void activity(int onState) { 
   debugStr("-> RECEIVED " + caveUserActivityPattern + " i - " + onState);
   
-  if (onState == 1) {                                // turn system and looped sounds on
-    isSystemOn = true;
-    for (int i = 0; i < NUMBER_INTERACTIONS; ++i) {
-      if (soundEvents[i].isLooped) {
-        soundEvents[i].isOn = true;
-        // send to sound system (caveuser)
-        updateSoundPosition(POSITION, caveUserXdefault, caveUserYdefault);
-      }
-    }
-  } else if (onState == 0) {                         // turn system and looped sounds off
-    isSystemOn = false;
-    for (int i = 0; i < NUMBER_INTERACTIONS; ++i) { 
-      if (soundEvents[i].isLooped)
-        sendSoundEventOff(i);
-    }
-  }
+  if (onState == 1) 
+    activateSystem();
+  else if (onState == 0)
+    deactivateSystem();
 }
 
 // *** receive room person tracking position and orientation ***************************************
@@ -205,49 +238,47 @@ void velocity(float velocity) {
 // *** send position and orientation to the CAVE ***************************************************
 //     send each n(timeout) ms 
 void sendRoomUserDataToCave() {
-  if (isSystemOn) {
-    if ((millis() - timestamp) >= timeout) {
-      if (SEND_ORIENT_POS_SEPARATELY) {
-        // send position data
-        OscMessage message = new OscMessage(roomPersonPositionPattern);
-        message.add(map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight));
-        message.add(map(roomUser[Y], roomFront, roomBack, caveFront, caveBack));
-        if (CAVE_TCP_ONLY)
-          caveOSCtcp.send(message);
-        else
-          caveOSCudp.send(message, caveNetAddress);
-          
-        debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " " +
-                 map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight) + " " +
-                 map(roomUser[Y], roomFront, roomBack, caveFront, caveBack));
+  if ((millis() - timestamp) >= timeout) {
+    if (SEND_ORIENT_POS_SEPARATELY) {
+      // send position data
+      OscMessage message = new OscMessage(roomPersonPositionPattern);
+      message.add(map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight));
+      message.add(map(roomUser[Y], roomFront, roomBack, caveFront, caveBack));
+      if (CAVE_TCP_ONLY)
+        caveOSCtcp.send(message);
+      else
+        caveOSCudp.send(message, caveNetAddress);
         
-        // send orientation data in a separate message         
-        message = new OscMessage(roomPersonOrientationPattern);
-        message.add(roomUser[O]);
-        if (CAVE_TCP_ONLY)
-          caveOSCtcp.send(message);
-        else
-          caveOSCudp.send(message, caveNetAddress);
-        
-        debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + 
-                 " " + roomUser[O]);
-      } else {
-        OscMessage message = new OscMessage(roomPersonPattern);
-        message.add(map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight));
-        message.add(map(roomUser[Y], roomFront, roomBack, caveFront, caveBack));
-        message.add(roomUser[O]);
-        if (CAVE_TCP_ONLY)
-          caveOSCtcp.send(message);
-        else
-          caveOSCudp.send(message, caveNetAddress);
-        
-        debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " " +
-                 map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight) + " " +
-                 map(roomUser[Y], roomFront, roomBack, caveFront, caveBack) + " " + roomUser[O]);
-      }
-      timestamp = millis();
-    } 
-  }
+      debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " " +
+               map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight) + " " +
+               map(roomUser[Y], roomFront, roomBack, caveFront, caveBack));
+      
+      // send orientation data in a separate message         
+      message = new OscMessage(roomPersonOrientationPattern);
+      message.add(roomUser[O]);
+      if (CAVE_TCP_ONLY)
+        caveOSCtcp.send(message);
+      else
+        caveOSCudp.send(message, caveNetAddress);
+      
+      debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + 
+               " " + roomUser[O]);
+    } else {
+      OscMessage message = new OscMessage(roomPersonPattern);
+      message.add(map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight));
+      message.add(map(roomUser[Y], roomFront, roomBack, caveFront, caveBack));
+      message.add(roomUser[O]);
+      if (CAVE_TCP_ONLY)
+        caveOSCtcp.send(message);
+      else
+        caveOSCudp.send(message, caveNetAddress);
+      
+      debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " " +
+               map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight) + " " +
+               map(roomUser[Y], roomFront, roomBack, caveFront, caveBack) + " " + roomUser[O]);
+    }
+    timestamp = millis();
+  } 
 }
 
 // *** send sound event change to sound system *****************************************************
@@ -347,7 +378,7 @@ void touching(float touchX, float touchY, float touchZ) {
 //     trigger the hit sound
 void hit(float hitX, float hitY, float hitZ) { 
   // new hit event received
-  if (isSystemOn && !vest.hitOn) {
+  if (isSystemOn && !vest.isHitOn) {
     debugStr("-> RECEIVED " + caveUserHitPattern + " fff - " + hitX + " " + hitY + " " + hitZ);
             
     vest.hit(hitX, hitY, hitZ);
@@ -361,7 +392,7 @@ void hit(float hitX, float hitY, float hitZ) {
 //     activate some motors for a certain period of time to make the bump a haptic experience
 //     trigger the bump sound
 void bump(float bumpX, float bumpY) {  
-  if (isSystemOn && !vest.bumpOn) {
+  if (isSystemOn && !vest.isBumpOn) {
     debugStr("-> RECEIVED " + caveUserBumpPattern + " ff - " + bumpX + " " + bumpY);    
   
     vest.bump(bumpX, bumpY);

@@ -1,5 +1,5 @@
 // generate debug output: write it to a file or to the console
-final boolean DEBUG = false;
+final boolean DEBUG = true;
 final boolean WRITE_TO_FILE = false;
 // turn heartbeat off for testing other sounds better
 final boolean HEARTBEAT_OFF = false;
