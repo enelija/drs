@@ -30,7 +30,7 @@ final int NUMBER_INTERACTIONS = 5;
 float [] volumes = {1.0, 1.0, 0.4, 1.0, 0.4};
 SpatialSoundEvent soundEvents[] = new SpatialSoundEvent[NUMBER_INTERACTIONS];
 
-OscP5 soundOSCudp, trackingOSCudp, orienttrackingOSCudpudp, caveOSCtcp, caveOSCudp; 
+OscP5 soundOSCudp, trackingOSCudp, orienttrackingOSCudp, caveOSCtcpIn, caveOSCtcpOut, caveOSCudpIn, caveOSCudpOut; 
 NetAddress soundNetAddress, caveNetAddress;
 
 float centerX = 0.0, centerY = 0.0, 
@@ -41,6 +41,7 @@ float centerX = 0.0, centerY = 0.0,
       caveUserSoundDistance = 0.0, caveUserSoundAngle = 0.0;
 int lastHearbeat = 0,  testTimeStamp = 0, testInterval = 500, testIdCnt = 0;
 boolean isClientConnected = false;
+boolean sendPosNow = true;
 
 // *************************************************************************************************
 void setup() {
@@ -48,8 +49,7 @@ void setup() {
   
   vest = new Vest(this, BLUETOOTH_PORT, baudRate);
   
-  setupOscListeners();
-  setupOscSenders();  
+  setupOsc();
   setupSounds();
   
   timestamp = millis();
@@ -61,7 +61,8 @@ void draw() {
   checkClients();
   
   if (isSystemOn) {
-    sendRoomUserDataToCave();
+    if (!SEND_IMMEDIATELY)
+      sendRoomUserDataToCave();
       
     if (!HEARTBEAT_OFF)
       triggerHeartbeat();
@@ -74,38 +75,39 @@ void draw() {
 }
 
 // *************************************************************************************************
-void setupOscListeners() {
-  trackingOSCudp = new OscP5(this, TRACKING_UDP_IN_PORT);         
-  caveOSCtcp = new OscP5(this, CAVE_TCP_IN_PORT, OscP5.TCP); 
-  if (!CAVE_TCP_ONLY) 
-    caveOSCudp = new OscP5(this, CAVE_UDP_IN_PORT);       
-    
+void setupOsc() {         
+  trackingOSCudp = new OscP5(this, TRACKING_UDP_IN_PORT);
+  
+  caveOSCtcpIn = new OscP5(this, CAVE_TCP_IN_PORT, OscP5.TCP);          
+  caveOSCtcpOut = new OscP5(this, CAVE_TCP_OUT_PORT, OscP5.TCP);
+  if (!CAVE_TCP_ONLY) {
+    caveOSCudpIn = new OscP5(this, CAVE_UDP_IN_PORT);       
+    caveOSCudpOut = new OscP5(this, CAVE_UDP_OUT_PORT);
+  }
+  
   // need to plug TCP methods since oscEvent can not mix UDP with TCP
   if (!ORIENTATION_FROM_VEST) {  // vest sends via bluetooth, phone via OSC
-    orienttrackingOSCudpudp = new OscP5(this, ORIENTATION_TRACKING_UDP_IN_PORT);
-    orienttrackingOSCudpudp.plug(this, "trackingOrientation", orientationTrackingPattern);
+    orienttrackingOSCudp = new OscP5(this, ORIENTATION_TRACKING_UDP_IN_PORT);
+    orienttrackingOSCudp.plug(this, "trackingOrientation", orientationTrackingPattern);
   }
   
   trackingOSCudp.plug(this, "trackingPosition", trackingPattern);
   
-  caveOSCtcp.plug(this, "touch", caveUserTouchPattern);  
-  caveOSCtcp.plug(this, "hit", caveUserHitPattern);
-  caveOSCtcp.plug(this, "bump", caveUserBumpPattern);
-  caveOSCtcp.plug(this, "activity", caveUserActivityPattern);
+  caveOSCtcpIn.plug(this, "touch", caveUserTouchPattern);  
+  caveOSCtcpIn.plug(this, "hit", caveUserHitPattern);
+  caveOSCtcpIn.plug(this, "bump", caveUserBumpPattern);
+  caveOSCtcpIn.plug(this, "activity", caveUserActivityPattern);
   
   if (CAVE_TCP_ONLY) {
-    caveOSCtcp.plug(this, "position", caveUserPositionPattern);
-    caveOSCtcp.plug(this, "velocity", caveUserVelocityPattern);
-    caveOSCtcp.plug(this, "touching", caveUserTouchingPattern);
+    caveOSCtcpIn.plug(this, "position", caveUserPositionPattern);
+    caveOSCtcpIn.plug(this, "velocity", caveUserVelocityPattern);
+    caveOSCtcpIn.plug(this, "touching", caveUserTouchingPattern);
   } else {
-    caveOSCudp.plug(this, "position", caveUserPositionPattern);
-    caveOSCudp.plug(this, "velocity", caveUserVelocityPattern);
-    caveOSCudp.plug(this, "touching", caveUserTouchingPattern);
+    caveOSCudpIn.plug(this, "position", caveUserPositionPattern);
+    caveOSCudpIn.plug(this, "velocity", caveUserVelocityPattern);
+    caveOSCudpIn.plug(this, "touching", caveUserTouchingPattern);
   }
-}
-
-// *************************************************************************************************
-void setupOscSenders() {
+  
   soundOSCudp = new OscP5(this, SOUND_UDP_OUT_PORT);
   soundNetAddress = new NetAddress(localIP, SOUND_UDP_OUT_PORT);
   if (!CAVE_TCP_ONLY)
@@ -157,7 +159,7 @@ void deactivateSystem() {
 // *** check whether the client is connected or not ************************************************
 //     de-/activate the system accordingly
 void checkClients() {
-  int numOfConnectedClients = caveOSCtcp.tcpServer().getClients().length;
+  int numOfConnectedClients = caveOSCtcpIn.tcpServer().getClients().length;
     
   if (isClientConnected && numOfConnectedClients == 0) {
     debugStr("-> CLIENT DISCONNECTED - turning system off");
@@ -192,6 +194,14 @@ void tracking(float roomUserX, float roomUserY, float roomUserO) {
     roomUser[X] = roomUserX; 
     roomUser[Y] = roomUserY; 
     roomUser[O] = roomUserO; 
+    
+    if (SEND_IMMEDIATELY) {
+      if (SEND_ORIENT_POS_SEPARATELY) {
+        sendPositionToCave();
+        sendOrientationToCave();
+      } else 
+        sendPositionAndOrientationToCave();
+    }
   }
 }
 
@@ -202,6 +212,9 @@ void trackingOrientation(int roomUserYaw, int roomUserRoll, int roomUserPitch) {
                roomUserRoll + " " + roomUserPitch);
     
     roomUser[O] = float(roomUserYaw); 
+    
+    if (SEND_IMMEDIATELY)
+      sendOrientationToCave();
   }
 }
 
@@ -212,6 +225,9 @@ void trackingPosition(float roomUserX, float roomUserY) {
 
     roomUser[X] = roomUserX; 
     roomUser[Y] = roomUserY; 
+        
+    if (SEND_IMMEDIATELY)
+      sendPositionToCave();
   }
 }
 
@@ -235,50 +251,68 @@ void velocity(float velocity) {
   }
 }
 
-// *** send position and orientation to the CAVE ***************************************************
-//     send each n(timeout) ms 
+// *** send position and orientation to the CAVE each n(timeout) ms ********************************
+//     toggle between sending orientation and position 
 void sendRoomUserDataToCave() {
   if ((millis() - timestamp) >= timeout) {
     if (SEND_ORIENT_POS_SEPARATELY) {
-      // send position data
-      OscMessage message = new OscMessage(roomPersonPositionPattern);
-      message.add(map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight));
-      message.add(map(roomUser[Y], roomFront, roomBack, caveFront, caveBack));
-      if (CAVE_TCP_ONLY)
-        caveOSCtcp.send(message);
-      else
-        caveOSCudp.send(message, caveNetAddress);
-        
-      debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " " +
-               map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight) + " " +
-               map(roomUser[Y], roomFront, roomBack, caveFront, caveBack));
-      
-      // send orientation data in a separate message         
-      message = new OscMessage(roomPersonOrientationPattern);
-      message.add(roomUser[O]);
-      if (CAVE_TCP_ONLY)
-        caveOSCtcp.send(message);
-      else
-        caveOSCudp.send(message, caveNetAddress);
-      
-      debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + 
-               " " + roomUser[O]);
+      if (sendPosNow) {
+        sendPositionToCave();
+        sendPosNow = !sendPosNow;
+      } else {
+        sendOrientationToCave();
+        sendPosNow = !sendPosNow;
+      }
     } else {
-      OscMessage message = new OscMessage(roomPersonPattern);
-      message.add(map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight));
-      message.add(map(roomUser[Y], roomFront, roomBack, caveFront, caveBack));
-      message.add(roomUser[O]);
-      if (CAVE_TCP_ONLY)
-        caveOSCtcp.send(message);
-      else
-        caveOSCudp.send(message, caveNetAddress);
-      
-      debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " " +
-               map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight) + " " +
-               map(roomUser[Y], roomFront, roomBack, caveFront, caveBack) + " " + roomUser[O]);
+      sendPositionAndOrientationToCave();
     }
     timestamp = millis();
   } 
+}
+
+// *** send position data to the CAVE **************************************************************
+void sendPositionToCave() {
+  // send position data
+  OscMessage message = new OscMessage(roomPersonPositionPattern);
+  message.add(map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight));
+  message.add(map(roomUser[Y], roomFront, roomBack, caveFront, caveBack));
+  if (CAVE_TCP_ONLY)
+    caveOSCtcpOut.send(message);
+  else
+    caveOSCudpOut.send(message, caveNetAddress);
+    
+  debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " " +
+           map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight) + " " +
+           map(roomUser[Y], roomFront, roomBack, caveFront, caveBack));
+}
+
+// *** send orientation data to the CAVE ***********************************************************
+void sendOrientationToCave() {  
+  OscMessage message = new OscMessage(roomPersonOrientationPattern);
+  message.add(roomUser[O]);
+  if (CAVE_TCP_ONLY)
+    caveOSCtcpOut.send(message);
+  else
+    caveOSCudpOut.send(message, caveNetAddress);
+  
+  debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + 
+           " " + roomUser[O]);
+}
+
+// *** send position and orientation data combined to the CAVE *************************************
+void sendPositionAndOrientationToCave() {
+  OscMessage message = new OscMessage(roomPersonPattern);
+  message.add(map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight));
+  message.add(map(roomUser[Y], roomFront, roomBack, caveFront, caveBack));
+  message.add(roomUser[O]);
+  if (CAVE_TCP_ONLY)
+    caveOSCtcpOut.send(message);
+  else
+    caveOSCudpOut.send(message, caveNetAddress);
+  
+  debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " " +
+           map(roomUser[X], roomLeft, roomRight, caveLeft, caveRight) + " " +
+           map(roomUser[Y], roomFront, roomBack, caveFront, caveBack) + " " + roomUser[O]);
 }
 
 // *** send sound event change to sound system *****************************************************

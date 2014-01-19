@@ -11,6 +11,8 @@ final boolean RUN_WITHOUT_VEST = true;
 final boolean CAVE_TCP_ONLY = false;
 // send position and orientation in two separate messages (true) or in a single one (false)
 final boolean SEND_ORIENT_POS_SEPARATELY = true;
+// send position and orientation immediately to the CAVE instead of each n ms
+final boolean SEND_IMMEDIATELY = true;
 
 // use false here if the activity on/off event is sent by the CAVE
 boolean isSystemOn = false; 
@@ -20,9 +22,10 @@ String caveIP = "127.0.0.1"; //"10.0.0.200"; //"10.156.309.151"
 String localIP = "127.0.0.1";
 
 // in- and out ports for the cave communication
+final int CAVE_TCP_OUT_PORT = 2377;
 final int CAVE_TCP_IN_PORT = 2378;
-final int CAVE_UDP_IN_PORT = 2379;
-final int CAVE_UDP_OUT_PORT = 2380;
+final int CAVE_UDP_OUT_PORT = 2379;
+final int CAVE_UDP_IN_PORT = 2380;
 
 // in- and outbound ports for all local UDP communication
 final int SOUND_UDP_OUT_PORT = 12345;                 // local
