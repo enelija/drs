@@ -30,7 +30,7 @@ final int NUMBER_INTERACTIONS = 5;
 float [] volumes = {1.0, 1.0, 0.4, 1.0, 0.4};
 SpatialSoundEvent soundEvents[] = new SpatialSoundEvent[NUMBER_INTERACTIONS];
 
-OscP5 soundOSCudp, trackingOSCudp, orienttrackingOSCudp, caveOSCtcpIn, caveOSCtcpOut, caveOSCudpIn, caveOSCudpOut; 
+OscP5 soundOSCudp, trackingOSCudp, orientTrackingOSCudp, caveOSCtcpIn, caveOSCtcpOut, caveOSCudpIn, caveOSCudpOut; 
 NetAddress soundNetAddress, caveNetAddress;
 
 float centerX = 0.0, centerY = 0.0, 
@@ -57,8 +57,8 @@ void setup() {
 
 // *************************************************************************************************
 void draw() {  
-  
-  checkClients();
+  if (PREVENT_INITITATE_TCP_CONN)
+    checkClients();
   
   if (isSystemOn) {
     if (!SEND_IMMEDIATELY)
@@ -78,17 +78,25 @@ void draw() {
 void setupOsc() {         
   trackingOSCudp = new OscP5(this, TRACKING_UDP_IN_PORT);
   
-  caveOSCtcpIn = new OscP5(this, CAVE_TCP_IN_PORT, OscP5.TCP);          
-  caveOSCtcpOut = new OscP5(this, CAVE_TCP_OUT_PORT, OscP5.TCP);
+  if (PREVENT_INITITATE_TCP_CONN) {
+    debugStr("Creating TCP in and out connection (no initiation)");
+    caveOSCtcpIn = new OscP5(this, CAVE_TCP_IN_PORT, OscP5.TCP);          
+    caveOSCtcpOut = new OscP5(this, CAVE_TCP_OUT_PORT, OscP5.TCP);
+  } else {
+    debugStr("Initiating TCP in and out connections to " + caveIP);
+    caveOSCtcpIn = new OscP5(caveIP, CAVE_TCP_IN_PORT, OscP5.TCP);          
+    caveOSCtcpOut = new OscP5(caveIP, CAVE_TCP_OUT_PORT, OscP5.TCP);
+  }
   if (!CAVE_TCP_ONLY) {
+    debugStr("Creating UDP in and out connections");
     caveOSCudpIn = new OscP5(this, CAVE_UDP_IN_PORT);       
     caveOSCudpOut = new OscP5(this, CAVE_UDP_OUT_PORT);
   }
   
   // need to plug TCP methods since oscEvent can not mix UDP with TCP
   if (!ORIENTATION_FROM_VEST) {  // vest sends via bluetooth, phone via OSC
-    orienttrackingOSCudp = new OscP5(this, ORIENTATION_TRACKING_UDP_IN_PORT);
-    orienttrackingOSCudp.plug(this, "trackingOrientation", orientationTrackingPattern);
+    orientTrackingOSCudp = new OscP5(this, ORIENTATION_TRACKING_UDP_IN_PORT);
+    orientTrackingOSCudp.plug(this, "trackingOrientation", orientationTrackingPattern);
   }
   
   trackingOSCudp.plug(this, "trackingPosition", trackingPattern);
@@ -319,6 +327,7 @@ void sendPositionAndOrientationToCave() {
 //     set distance and angle for spatial sound
 //     send OSC event
 void sendSoundChangeEvent(int interaction, float distance, float angle) {
+  if (soundEvents[interaction].isDifferent(soundEvents[interaction].volume, distance, angle, true)) {
     soundEvents[interaction].distance = distance;
     soundEvents[interaction].angle = angle;
     soundEvents[interaction].isOn = true;
@@ -333,12 +342,14 @@ void sendSoundChangeEvent(int interaction, float distance, float angle) {
              soundEvents[interaction].distance +  " " + soundEvents[interaction].angle);
           
     soundOSCudp.send(message, soundNetAddress);
+  }
 }
 
 // *** send sound event off to sound system ********************************************************
 //     reset distance and angle for spatial sound to 0.0
 //     send OSC event
 void sendSoundEventOff(int interaction) {
+  if (soundEvents[interaction].isDifferent(0.0, 0.0, 0.0, false)) {
     soundEvents[interaction].isOn = false;
     
     OscMessage message = new OscMessage(soundPattern + "/" + soundEvents[interaction].number);
@@ -349,6 +360,7 @@ void sendSoundEventOff(int interaction) {
     debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " - 0.0 0.0 0.0");
       
     soundOSCudp.send(message, soundNetAddress);
+  }
 }
 
 // *** send sound position change ******************************************************************

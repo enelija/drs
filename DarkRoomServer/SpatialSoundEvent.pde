@@ -15,4 +15,13 @@ class SpatialSoundEvent {
     this.isOn = true;
     this.isLooped = false;
   }
+  
+  boolean isDifferent(float volume, float distance, float angle, boolean isOn) {
+    if (this.volume != volume || this.distance != distance || 
+        this.angle != angle || this.isOn != isOn) {
+      return true;
+    }
+    
+    return false;
+  }
 }

@@ -1,12 +1,17 @@
 // generate debug output: write it to a file or to the console
 final boolean DEBUG = true;
 final boolean WRITE_TO_FILE = false;
+
 // turn heartbeat off for testing other sounds better
 final boolean HEARTBEAT_OFF = false;
+
 // receive orientation from vest or via OSC (smartphone)
 final boolean ORIENTATION_FROM_VEST = false;  
 // test without the vest turns all bluetooth communication off (no InvocationTargetException for OSC TCP)
 final boolean RUN_WITHOUT_VEST = true;  
+
+// prevent from initiating a TCP connection
+final boolean PREVENT_INITITATE_TCP_CONN = false;
 // only use the tcp for cave communication
 final boolean CAVE_TCP_ONLY = false;
 // send position and orientation in two separate messages (true) or in a single one (false)
@@ -15,10 +20,10 @@ final boolean SEND_ORIENT_POS_SEPARATELY = true;
 final boolean SEND_IMMEDIATELY = true;
 
 // use false here if the activity on/off event is sent by the CAVE
-boolean isSystemOn = false; 
+boolean isSystemOn = true; 
 
 // set IP for the CAVE
-String caveIP = "127.0.0.1"; //"10.0.0.200"; //"10.156.309.151"
+String caveIP = "127.0.0.1"; /*"10.0.0.200";*/ /*"10.156.309.151"*/
 String localIP = "127.0.0.1";
 
 // in- and out ports for the cave communication
