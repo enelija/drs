@@ -20,10 +20,10 @@ final boolean SEND_ORIENT_POS_SEPARATELY = true;
 final boolean SEND_IMMEDIATELY = true;
 
 // use false here if the activity on/off event is sent by the CAVE
-boolean isSystemOn = true; 
+boolean isSystemOn = false; 
 
 // set IP for the CAVE
-String caveIP = "127.0.0.1"; /*"10.0.0.200";*/ /*"10.156.309.151"*/
+String caveIP = /*"127.0.0.1";*/ "10.0.0.200"; /*"10.156.309.151"*/
 String localIP = "127.0.0.1";
 
 // in- and out ports for the cave communication
@@ -86,9 +86,9 @@ int minHearbeat = 50, maxHeartbeat = 100;   // in beats per minute
 //           [left, right] / [bottom, top] / [back, front] 
 //           width/height/depth are 52.0/62.5/20.0 centimeters: 
 //           [-26.0, 26.0] / [0.0, 62.5]   / [-10.0, 10.0]
-float caveLeft = -1000.0, caveRight = 1000.0, caveFront = -1000.0, 
-      caveBack = 1000.0, caveBottom = 0.0, caveTop = 2000.0,                      // cm
+float caveLeft = -1500.0, caveRight = 1500.0, caveFront = -1500.0, 
+      caveBack = 1500.0, caveBottom = 0.0, caveTop = 3000.0,                      // cm
       roomLeft = 1500.0, roomRight = -1500.0,                                     // looking from back to front, right is negative
-      roomFront = 0.0, roomBack = 3000.0,                                         // cm
+      roomFront = 3000.0, roomBack = 0.0, roomFrontOffset = -1500.0,              // cm
       vestLeft = -26.0, vestRight = 26.0, vestBottom = 0.0, vestTop = 62.5,           
       vestBack = -10.0, vestFront = 10.0;                                         // cm
