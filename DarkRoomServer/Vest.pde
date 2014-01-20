@@ -31,28 +31,29 @@ class Vest {
   //                \ _____ /
 
   Motor[] motors = {
-      // FRONT (id,     X,      Y,      Z)
-      new Motor( 0, 18.0f,  10.0f,  62.5f),        // 0:  shoulder outer right
-      new Motor( 1, 14.5f,  10.0f,  62.5f),        // 1:  shoulder center right
-      new Motor( 2, 11.0f,  10.0f,  62.5f),        // 2:  shoulder inner right
-      new Motor( 3,-11.0f,  10.0f,  62.5f),        // 3:  shoulder inner left
-      new Motor( 4,-14.5f,  10.0f,  62.5f),        // 4:  shoulder center left
-      new Motor( 5,-18.0f,  10.0f,  62.5f),        // 5:  shoulder outer left
-      new Motor( 6,-19.0f,  10.0f,  28.0f),        // 6:  arm left
-      new Motor( 7, 19.0f,  10.0f,  28.0f),        // 7:  arm right
-      new Motor( 8, 16.0f,  10.0f,  16.0f),        // 8:  hip right
-      new Motor( 9,-16.0f,  10.0f,  16.0f),        // 9:  hip left
-      // BACK  (id     X,       Y,      Z)
-      new Motor(10,-15.0f, -10.0f,  52.5f),        // 10:  shoulder left
-      new Motor(11, 15.0f, -10.0f,  52.5f),        // 11:  shoulder right
-      new Motor(12,  0.0f, -10.0f,  45.5f),        // 12:  spine top
-      new Motor(13,  0.0f, -10.0f,  38.5f),        // 13:  spine almost top
-      new Motor(14,  0.0f, -10.0f,  31.5f),        // 14:  spine almost bottom
-      new Motor(15,  0.0f, -10.0f,  24.5f)         // 15:  spine bottom
+      // FRONT (id,     X,      Y,      Z) 
+      new Motor( 0, -18.0f,  10.0f,  62.5f),        // 0:  shoulder outer left
+      new Motor( 1, -14.5f,  10.0f,  62.5f),        // 1:  shoulder center left
+      new Motor( 2, -11.0f,  10.0f,  62.5f),        // 2:  shoulder inner left
+      new Motor( 3,  18.0f,  10.0f,  62.5f),        // 3:  shoulder outer right
+      new Motor( 4,  14.5f,  10.0f,  62.5f),        // 4:  shoulder center right
+      new Motor( 5,  11.0f,  10.0f,  62.5f),        // 5:  shoulder inner right 
+      new Motor( 6, -19.0f,  10.0f,  28.0f),        // 6:  arm left
+      new Motor( 7,  19.0f,  10.0f,  28.0f),        // 7:  arm right
+      new Motor( 8,  16.0f,  10.0f,  16.0f),        // 8:  hip right
+      new Motor( 9, -16.0f,  10.0f,  16.0f),        // 9:  hip left
+      // BACK  (id      X,       Y,      Z)
+      new Motor(10, -15.0f, -10.0f,  52.5f),        // 10:  shoulder left
+      new Motor(11,  15.0f, -10.0f,  52.5f),        // 11:  shoulder right
+      new Motor(12,   0.0f, -10.0f,  45.5f),        // 12:  spine top
+      new Motor(13,   0.0f, -10.0f,  38.5f),        // 13:  spine almost top
+      new Motor(14,   0.0f, -10.0f,  31.5f),        // 14:  spine almost bottom
+      new Motor(15,   0.0f, -10.0f,  24.5f)         // 15:  spine bottom
     };
     
   // motor strength for touch/hit/bump
   int touchStrength = 30;
+  int lastTouchId = 0;
     
   // on bump: motors with first four id are activated with strength 55 for 120 ms, 
   //          then the next four motors are activated with strength 22 for 90 ms,
@@ -102,8 +103,10 @@ class Vest {
     
   Vest(PApplet app, int port, int baudrate) {
     if (!RUN_WITHOUT_VEST) {
+      printStr("Available COM ports");
       for (int i = 0; i < Serial.list().length; ++i) 
         printStr(Serial.list()[i]); 
+      printStr("Using port " + Serial.list()[port] + " at baudrate " + baudrate);
       bluetooth = new Serial(app, Serial.list()[port], baudrate);
     }
   }
@@ -149,10 +152,15 @@ class Vest {
   
   void touch(float touchX, float touchY, float touchZ) {
     if (isTouchOn) {
-      resetMotors();
       int mid = getNearestMotorID(touchX, touchY, touchZ);
-      activateMotor(mid, touchStrength);
-      debugStr("    -> running TOUCH with strength " + touchStrength + " on motor " + mid); 
+      if (lastTouchId != mid) {
+        resetMotors();
+        activateMotor(mid, touchStrength);
+        lastTouchId = mid;
+        debugStr("    -> running TOUCH with strength " + touchStrength + " on motor " + mid); 
+      } else {
+        debugStr("    -> continuing TOUCH with strength " + touchStrength + " on motor " + mid);
+      }
     }
   }
   
