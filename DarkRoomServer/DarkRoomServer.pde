@@ -443,7 +443,7 @@ void hit(float hitX, float hitY, float hitZ) {
 // *** receive CAVE bump positions *****************************************************************
 //     activate some motors for a certain period of time to make the bump a haptic experience
 //     trigger the bump sound
-void bump(float bumpX, float bumpY) {  
+void bump(float bumpX, float bumpY) {   
   if (isSystemOn && !vest.isBumpOn) {
     debugStr("-> RECEIVED " + caveUserBumpPattern + " ff - " + bumpX + " " + bumpY);    
   
