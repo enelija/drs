@@ -54,7 +54,9 @@ final String roomPersonPattern = "/room_person";                           // TC
 
 // bluetooth port
 final int BLUETOOTH_PORT = 2;               // 0: COM1 (Windows) // 1: COM3 (Windows)
-int baudRate = 57600;
+final int baudRate = 57600;
+final int resetTimeout = 250;               // reset is sent to motor each n (resetTimeout) ms in case something goes wrong 
+                                            // reset is only sent if no hit/bump/touch action is active
 
 // timer for sending to CAVE every 100 ms (10x per second)
 int timestamp = 0, timeout = 100;

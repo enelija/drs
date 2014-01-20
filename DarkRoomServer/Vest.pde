@@ -59,19 +59,19 @@ class Vest {
   //          then the next four motors are activated with strength 22 for 90 ms,
   int numOfActiveBumpMotors = 4;             // number of bump motors activated at the same time
   int bumpStep = 0;                           // current bump animation step
-  int[] bumpStrengths = {55, 22};
-  int[] bumpDurations = {120, 90};           // in ms
+  int[] bumpStrengths = {50, 30};
+  int[] bumpDurations = {600, 300};           // in ms
   int[][] bumpPatterns = {
-    { 5,  6,  9, 10, 12, 13, 14, 15},        // bump left
-    { 0,  7,  8, 11, 12, 13, 14, 15},        // bump right
-    {12, 13, 14, 15,  8,  9, 10, 11},        // bump back
-    { 1,  2,  3,  4,  0,  5,  6,  7}};       // bump front
+    { 6,  9,  0,  1,  6,  9,  1, 10},        // bump left
+    { 7,  8,  3,  4,  7,  8,  4, 11},        // bump right
+    {13, 12, 10, 11, 12, 13, 14, 15},        // bump back
+    { 1,  2,  5,  4,  0,  1,  3,  4}};       // bump front
   
   // on hit: motor with id is activated with strength 63 for 100 ms, 
   //         then three surrounding motors with strength 15 each are activated for 60 ms
   int numOfActiveHitMotors = 3;              // number of hit motors activated at the same time
-  int[] hitStrengths = {63, 15};
-  int[] hitDurations = {100, 60};            // in ms
+  int[] hitStrengths = {63, 35};
+  int[] hitDurations = {450, 200};            // in ms
   int hitStep = 0;                           // current bump animation step
   int[][] hitPatterns = {
           {0, 1, 2, 0, 1, 2},                // motor id 0
@@ -84,8 +84,8 @@ class Vest {
           {7, 8, 15, 7, 8, 15},              // motor id 7
           {8, 15, 7, 8, 15, 7},              // motor id 8
           {9, 6, 15, 9, 6, 15},              // motor id 9
-          {10, 4, 5, 10, 4, 5},              // motor id 10
-          {11, 0, 1, 11, 0, 1},              // motor id 11
+          {10, 0, 1, 10, 0, 1},              // motor id 10
+          {11, 3, 4, 11, 3, 4},              // motor id 11
           {12, 13, 14, 12, 13, 14},          // motor id 12
           {13, 14, 12, 13, 14, 12},          // motor id 13
           {14, 15, 13, 14, 15, 13},          // motor id 14
@@ -98,7 +98,7 @@ class Vest {
   char resetPatt = 'r';
   char lineFeed = '\n';
    
-  int bumpArea = 0, bumpBegin = 0, hitBegin = 0, hitIdx = 0;
+  int bumpArea = 0, bumpBegin = 0, hitBegin = 0, hitIdx = 0, lastReset = 0;
   boolean isBumpOn = false, isHitOn = false, isTouchOn = false;
     
   Vest(PApplet app, int port, int baudrate) {
@@ -136,9 +136,18 @@ class Vest {
       updateBump();
     if (isHitOn)
       updateHit();
+    
+    // send reset from time to time if the vest is inactive
+    // since it can happen that a sent reset was ignored
+    if (!isTouchOn && !isBumpOn && !isHitOn) {
+      int now = millis();
+      if (now - lastReset > resetTimeout) {
+        resetMotors();
+        lastReset = now;
+      } 
+    }
   }
-
-      
+   
   void startTouch() {
     isTouchOn = true;
     debugStr(" -> starting TOUCH");
