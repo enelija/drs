@@ -6,7 +6,7 @@ final boolean WRITE_TO_FILE = false;
 final boolean HEARTBEAT_OFF = false;
 
 // receive orientation from vest or via OSC (smartphone)
-final boolean ORIENTATION_FROM_VEST = false;  
+final boolean ORIENTATION_FROM_VEST = true;  
 // test without the vest turns all bluetooth communication off (no InvocationTargetException for OSC TCP)
 final boolean RUN_WITHOUT_VEST = false;  
 
@@ -23,7 +23,7 @@ final boolean SEND_IMMEDIATELY = true;
 boolean isSystemOn = false; 
 
 // set IP for the CAVE
-String caveIP = /*"127.0.0.1";*/ "10.0.0.200"; /*"10.156.309.151"*/
+String caveIP = "129.187.11.151"; /*"127.0.0.1"; "10.0.0.200"; "10.156.309.151"*/
 String localIP = "127.0.0.1";
 
 // in- and out ports for the cave communication
@@ -55,7 +55,7 @@ final String roomPersonPattern = "/room_person";                           // TC
 // bluetooth port
 final int BLUETOOTH_PORT = 2;               // 0: COM1 (Windows) // 1: COM3 (Windows)
 final int baudRate = 57600;
-final int resetTimeout = 250;               // reset is sent to motor each n (resetTimeout) ms in case something goes wrong 
+final int resetTimeout = 3600000;               // reset is sent to motor each n (resetTimeout) ms in case something goes wrong 
                                             // reset is only sent if no hit/bump/touch action is active
 
 // timer for sending to CAVE every 100 ms (10x per second)

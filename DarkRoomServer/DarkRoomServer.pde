@@ -1,3 +1,5 @@
+//TODO: Orientierung fixen - wird nicht gesendet! (bis Donnerstag)
+
 /* *************************************************************************************************
     DarkRoomServer by ivan & enelija
       
@@ -48,6 +50,9 @@ void setup() {
   setupWriter(); 
   
   vest = new Vest(this, BLUETOOTH_PORT, baudRate);
+  
+  for (int i = 0; i < roomUser.length; ++i)
+    roomUser[i] = 0.0f;
   
   setupOsc();
   setupSounds();
@@ -179,6 +184,33 @@ void checkClients() {
     
     isClientConnected = true;
     activateSystem();
+  }
+}
+
+// *** callback does not work in class vest, needs to be implemented here **************************
+void serialEvent(Serial p) {
+  if (!RUN_WITHOUT_VEST && ORIENTATION_FROM_VEST) {
+    //debugStr("-> RECEIVED FROM SERIAL: " + p);
+    
+    String[] cmd = p.readString().split("\n");
+    if (cmd.length > 0 && cmd[0].length() > 1 && cmd[0].charAt(cmd[0].length() - 1) == '\r') {
+      String command = cmd[0].trim(); 
+      //debugStr("->                     : " + cmd);
+      try {
+        if (command.length() > 0 && command.charAt(0) == vest.orientPatt) {
+          float o = float(Integer.parseInt(command.substring(1))) / 10.0f;
+          //debugStr("  - received orientation " + o);
+          debugStr("-> RECEIVED FROM SERIAL orientation " + o);
+          
+          roomUser[O] = o;     
+  
+          if (isSystemOn && SEND_IMMEDIATELY) 
+            sendOrientationToCave();
+        }
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
   }
 }
 

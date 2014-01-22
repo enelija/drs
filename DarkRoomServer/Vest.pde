@@ -261,6 +261,8 @@ class Vest {
     return id;
   }
   
+  /*
+  // not working here, implemented this in the DarkRoomServer
   void serialEvent(Serial p) {
     if (!RUN_WITHOUT_VEST && ORIENTATION_FROM_VEST) {
       String[] cmd = p.readString().split("\n");
@@ -270,10 +272,15 @@ class Vest {
         if (command.charAt(0) == orientPatt) {
           float o = float(Integer.parseInt(command.substring(1))) / 10.0f;
           debugStr("  - received orientation " + o);
+          
           roomUser[O] = o;
+
+          if (SEND_IMMEDIATELY)
+            sendOrientationToCave();
         }
       }
     }
   }
+  */
 
 }
