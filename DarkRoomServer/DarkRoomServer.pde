@@ -1,5 +1,3 @@
-//TODO: Orientierung fixen - wird nicht gesendet! (bis Donnerstag)
-
 /* *************************************************************************************************
     DarkRoomServer by ivan & enelija
       
@@ -207,7 +205,8 @@ void serialEvent(Serial p) {
           if (isSystemOn && SEND_IMMEDIATELY) 
             sendOrientationToCave();
         }
-      } catch (Exception e) {
+      } catch (Exception e) {    // TODO: find out what causes this exception: is something which happens
+                                 //       in the very beginning, maybe a value not starting with h or a blank
         e.printStackTrace();
       }
     }
