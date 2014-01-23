@@ -1,6 +1,5 @@
 // generate debug output: write it to a file or to the console
-final boolean DEBUG = true;
-final boolean WRITE_TO_FILE = false;
+final boolean DEBUG_TO_FILE = false;
 
 // turn heartbeat off for testing other sounds better
 final boolean HEARTBEAT_OFF = false;
@@ -19,6 +18,9 @@ final boolean SEND_ORIENT_POS_SEPARATELY = true;
 // send position and orientation immediately to the CAVE instead of each n ms
 final boolean SEND_IMMEDIATELY = true;
 
+// Up axis offset where the bottom end of the vest starts (approx. height of the hip)
+float VEST_HEIGHT_OFFSET = 80.0;
+  
 // use false here if the activity on/off event is sent by the CAVE
 boolean isSystemOn = false; 
 
@@ -55,7 +57,7 @@ final String roomPersonPattern = "/room_person";                           // TC
 // bluetooth port
 final int BLUETOOTH_PORT = 2;               // 0: COM1 (Windows) // 1: COM3 (Windows)
 final int baudRate = 57600;
-final int resetTimeout = 300;/*3600000;*/               // reset is sent to motor each n (resetTimeout) ms in case something goes wrong 
+final int resetTimeout = 1500;/*3600000;*/               // reset is sent to motor each n (resetTimeout) ms in case something goes wrong 
                                             // reset is only sent if no hit/bump/touch action is active
 
 // timer for sending to CAVE every 100 ms (10x per second)
@@ -82,9 +84,6 @@ int minHearbeat = 50, maxHeartbeat = 100;   // in beats per minute
 //           origin is the bottom center
 float caveLeft = -10000.0, caveRight = 10000.0,                                   // for mapping the sound system 
       caveFront = -10000.0, caveBack = 10000.0,                                   // cm
-      
-      roomLeft = 1500.0, roomRight = -1500.0,                                     // for mapping the kinect tracking  
-      roomFront = 3000.0, roomBack = 0.0, roomFrontOffset = -1500.0,              // cm
-      
+
       vestLeft = -26.0, vestRight = 26.0, vestBottom = 0.0, vestTop = 62.5,       // for mapping the hit/bump/touch coords
       vestBack = -10.0, vestFront = 10.0;                                         // cm

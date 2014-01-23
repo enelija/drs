@@ -32,28 +32,29 @@ class Vest {
 
   Motor[] motors = {
       // FRONT (id,     X,      Y,      Z) 
-      new Motor( 0, -18.0f,  10.0f,  62.5f),        // 0:  shoulder outer left
-      new Motor( 1, -14.5f,  10.0f,  62.5f),        // 1:  shoulder center left
-      new Motor( 2, -11.0f,  10.0f,  62.5f),        // 2:  shoulder inner left
-      new Motor( 3,  18.0f,  10.0f,  62.5f),        // 3:  shoulder outer right
-      new Motor( 4,  14.5f,  10.0f,  62.5f),        // 4:  shoulder center right
-      new Motor( 5,  11.0f,  10.0f,  62.5f),        // 5:  shoulder inner right 
-      new Motor( 6, -19.0f,  10.0f,  28.0f),        // 6:  arm left
-      new Motor( 7,  19.0f,  10.0f,  28.0f),        // 7:  arm right
-      new Motor( 8,  16.0f,  10.0f,  16.0f),        // 8:  hip right
-      new Motor( 9, -16.0f,  10.0f,  16.0f),        // 9:  hip left
+      new Motor( 0, -18.0f,  10.0f,  VEST_HEIGHT_OFFSET + 62.5f),        // 0:  shoulder outer left
+      new Motor( 1, -14.5f,  10.0f,  VEST_HEIGHT_OFFSET + 62.5f),        // 1:  shoulder center left
+      new Motor( 2, -11.0f,  10.0f,  VEST_HEIGHT_OFFSET + 62.5f),        // 2:  shoulder inner left
+      new Motor( 3,  18.0f,  10.0f,  VEST_HEIGHT_OFFSET + 62.5f),        // 3:  shoulder outer right
+      new Motor( 4,  14.5f,  10.0f,  VEST_HEIGHT_OFFSET + 62.5f),        // 4:  shoulder center right
+      new Motor( 5,  11.0f,  10.0f,  VEST_HEIGHT_OFFSET + 62.5f),        // 5:  shoulder inner right 
+      new Motor( 6, -19.0f,  10.0f,  VEST_HEIGHT_OFFSET + 28.0f),        // 6:  arm left
+      new Motor( 7,  19.0f,  10.0f,  VEST_HEIGHT_OFFSET + 28.0f),        // 7:  arm right
+      new Motor( 8,  16.0f,  10.0f,  VEST_HEIGHT_OFFSET + 16.0f),        // 8:  hip right
+      new Motor( 9, -16.0f,  10.0f,  VEST_HEIGHT_OFFSET + 16.0f),        // 9:  hip left
       // BACK  (id      X,       Y,      Z)
-      new Motor(10, -15.0f, -10.0f,  52.5f),        // 10:  shoulder left
-      new Motor(11,  15.0f, -10.0f,  52.5f),        // 11:  shoulder right
-      new Motor(12,   0.0f, -10.0f,  45.5f),        // 12:  spine top
-      new Motor(13,   0.0f, -10.0f,  38.5f),        // 13:  spine almost top
-      new Motor(14,   0.0f, -10.0f,  31.5f),        // 14:  spine almost bottom
-      new Motor(15,   0.0f, -10.0f,  24.5f)         // 15:  spine bottom
+      new Motor(10, -15.0f, -10.0f,  VEST_HEIGHT_OFFSET + 52.5f),        // 10:  shoulder left
+      new Motor(11,  15.0f, -10.0f,  VEST_HEIGHT_OFFSET + 52.5f),        // 11:  shoulder right
+      new Motor(12,   0.0f, -10.0f,  VEST_HEIGHT_OFFSET + 45.5f),        // 12:  spine top
+      new Motor(13,   0.0f, -10.0f,  VEST_HEIGHT_OFFSET + 38.5f),        // 13:  spine almost top
+      new Motor(14,   0.0f, -10.0f,  VEST_HEIGHT_OFFSET + 31.5f),        // 14:  spine almost bottom
+      new Motor(15,   0.0f, -10.0f,  VEST_HEIGHT_OFFSET + 24.5f)         // 15:  spine bottom
     };
     
   // motor strength for touch/hit/bump
   int touchStrength = 30;
   int lastTouchId = 0;
+  float considerActionInputFromHeight = VEST_HEIGHT_OFFSET - 10.0f;
     
   // on bump: motors with first four id are activated with strength 55 for 120 ms, 
   //          then the next four motors are activated with strength 22 for 90 ms,
@@ -103,10 +104,10 @@ class Vest {
     
   Vest(PApplet app, int port, int baudrate) {
     if (!RUN_WITHOUT_VEST) {
-      printStr("Available COM ports");
+      debugStr("Available COM ports");
       for (int i = 0; i < Serial.list().length; ++i) 
-        printStr(Serial.list()[i]); 
-      printStr("Using port " + Serial.list()[port] + " at baudrate " + baudrate);
+        debugStr(Serial.list()[i]); 
+      debugStr("Using port " + Serial.list()[port] + " at baudrate " + baudrate);
       bluetooth = new Serial(app, Serial.list()[port], baudrate);
     }
   }
@@ -118,8 +119,9 @@ class Vest {
       String command = str(motorPatt) + str(motorFlag) + str(strengthFlag) + str(lineFeed);
       if (!RUN_WITHOUT_VEST)
         bluetooth.write(command);
-        
-      debugStr(" -> sending MOTOR command: " + command); 
+      
+      if (boolean((DEBUG & DEBUG_HIT) | (DEBUG & DEBUG_TOUCH) | (DEBUG & DEBUG_BUMP)))
+        debugStr(" -> sending MOTOR command: " + command); 
     }
   }
   
@@ -127,8 +129,9 @@ class Vest {
     String command = str(resetPatt) + str(lineFeed); 
     if (!RUN_WITHOUT_VEST)
       bluetooth.write(command);
-      
-    debugStr(" -> sending RESET command: " + command); 
+    
+    if (boolean((DEBUG & DEBUG_HIT) | (DEBUG & DEBUG_TOUCH) | (DEBUG & DEBUG_BUMP)))
+      debugStr(" -> sending RESET command: " + command); 
   }
   
   void update() {
@@ -150,25 +153,31 @@ class Vest {
    
   void startTouch() {
     isTouchOn = true;
-    debugStr(" -> starting TOUCH");
+    //if (DEBUG & DEBUG_TOUCH)
+      debugStr(" -> starting TOUCH");
   }
   
   void endTouch() {
     isTouchOn = false;
     resetMotors();
-    debugStr(" -> ending TOUCH");
+    if (boolean(DEBUG & DEBUG_TOUCH))
+      debugStr(" -> ending TOUCH");
   }
   
   void touch(float touchX, float touchY, float touchZ) {
     if (isTouchOn) {
       int mid = getNearestMotorID(touchX, touchY, touchZ);
-      if (lastTouchId != mid) {
-        resetMotors();
-        activateMotor(mid, touchStrength);
-        lastTouchId = mid;
-        debugStr("    -> running TOUCH with strength " + touchStrength + " on motor " + mid); 
-      } else {
-        debugStr("    -> continuing TOUCH with strength " + touchStrength + " on motor " + mid);
+      if (mid != -1) {
+        if (lastTouchId != mid) {
+          resetMotors();
+          activateMotor(mid, touchStrength);
+          lastTouchId = mid;
+          if (boolean(DEBUG & DEBUG_TOUCH))
+            debugStr("    -> running TOUCH with strength " + touchStrength + " on motor " + mid); 
+        } else {
+          if (boolean(DEBUG & DEBUG_TOUCH))
+            debugStr("    -> continuing TOUCH with strength " + touchStrength + " on motor " + mid);
+        }
       }
     }
   }
@@ -211,6 +220,7 @@ class Vest {
     resetMotors();  
     for (int i = 0; i < numOfActiveBumpMotors; ++i) {
       activateMotor(bumpPatterns[bumpArea][numOfActiveBumpMotors * n + i], bumpStrengths[n]);
+      if (boolean(DEBUG & DEBUG_BUMP))
       debugStr(" -> sending BUMP for area " + bumpArea + " with strength " + bumpStrengths[n] + 
                " to motor " + bumpPatterns[bumpArea][numOfActiveBumpMotors * n + i]);
     }
@@ -219,14 +229,18 @@ class Vest {
   void hit(float hitX, float hitY, float hitZ) {
     hitBegin = millis(); 
     isHitOn = true;
-    hitIdx = getNearestMotorID(hitX, hitY, hitZ);
-    updateHit();
+    int id = getNearestMotorID(hitX, hitY, hitZ);
+    if (id != -1) {
+      hitIdx = id;
+      updateHit();
+    }
   }
    
   void triggerHit(int n) {
     resetMotors();  
     for (int i = 0; i < numOfActiveHitMotors; ++i) {
       activateMotor(hitPatterns[hitIdx][numOfActiveHitMotors * n + i], hitStrengths[n]);
+      if (boolean(DEBUG & DEBUG_HIT))
       debugStr(" -> sending HIT with strength " + hitStrengths[n] + 
                " to motor " + hitPatterns[hitIdx][n + i]);
     }
@@ -248,39 +262,20 @@ class Vest {
   }
   
   int getNearestMotorID(float x, float y, float z) {
-    float curDist = 0.0f;
-    float minDist = dist(x, y, z, motors[0].coordinates.x, motors[0].coordinates.y, motors[0].coordinates.z);
-    int id = 0;
-    for (int i = 1; i < motors.length; ++i) {
-      curDist = dist(x, y, z, motors[i].coordinates.x, motors[i].coordinates.y, motors[i].coordinates.z);
-      if (curDist < minDist) {
-        minDist = curDist;
-        id = i;  
-      }
-    } 
-    return id;
-  }
-  
-  /*
-  // not working here, implemented this in the DarkRoomServer
-  void serialEvent(Serial p) {
-    if (!RUN_WITHOUT_VEST && ORIENTATION_FROM_VEST) {
-      String[] cmd = p.readString().split("\n");
-      if (cmd.length > 0 && cmd[0].length() > 1 && cmd[0].charAt(cmd[0].length() - 1) == '\r') {
-        String command = cmd[0].trim(); 
-        debugStr("-> RECEIVED FROM SERIAL: " + cmd);
-        if (command.charAt(0) == orientPatt) {
-          float o = float(Integer.parseInt(command.substring(1))) / 10.0f;
-          debugStr("  - received orientation " + o);
-          
-          roomUser[O] = o;
-
-          if (SEND_IMMEDIATELY)
-            sendOrientationToCave();
+    if (z > considerActionInputFromHeight) {
+      float curDist = 0.0f;
+      float minDist = dist(x, y, z, motors[0].coordinates.x, motors[0].coordinates.y, motors[0].coordinates.z);
+      int id = 0;
+      for (int i = 1; i < motors.length; ++i) {
+        curDist = dist(x, y, z, motors[i].coordinates.x, motors[i].coordinates.y, motors[i].coordinates.z);
+        if (curDist < minDist) {
+          minDist = curDist;
+          id = i;  
         }
-      }
+      } 
+      return id;
     }
+    return -1;
   }
-  */
 
 }

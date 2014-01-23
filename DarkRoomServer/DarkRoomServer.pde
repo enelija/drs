@@ -27,7 +27,7 @@ final int BUMP = 2;
 final int TOUCH = 3;
 final int HIT = 4;
 final int NUMBER_INTERACTIONS = 5;
-float [] volumes = {1.0, 1.0, 0.4, 1.0, 0.4};
+float [] volumes = {0.65, 0.6, 1.0, 0.85, 0.9};    // TODO: better sound tuning
 SpatialSoundEvent soundEvents[] = new SpatialSoundEvent[NUMBER_INTERACTIONS];
 
 OscP5 soundOSCudp, trackingOSCudp, orientTrackingOSCudp, caveOSCtcpIn, caveOSCtcpOut, caveOSCudpIn, caveOSCudpOut; 
@@ -42,9 +42,28 @@ float centerX = 0.0, centerY = 0.0,
 int lastHearbeat = 0,  testTimeStamp = 0, testInterval = 500, testIdCnt = 0;
 boolean isClientConnected = false;
 boolean sendPosNow = true;
+int w = 500, h = 500;
+
 
 // *************************************************************************************************
 void setup() {
+  
+  size(w, h);
+  background(255);
+  fill(0);
+  textSize(14);
+  text("To switch the debug output press the following buttons", 10, 20);
+  text("0: No debug output", 10, 50);
+  text("1: Toggle CAVE user position output", 10, 70);
+  text("2: Toggle room user position output", 10, 90);
+  text("3: Toggle room user orientation output", 10, 110);
+  text("4: Toggle velocity output", 10, 130);
+  text("5: Toggle hit position output", 10, 150);
+  text("6: Toggle bump position output", 10, 170);
+  text("7: Toggle touch position output", 10, 190);
+  text("8: Toggle sound output", 10, 190);
+  text("9: Debug everything", 10, 210);
+  
   setupWriter(); 
   
   vest = new Vest(this, BLUETOOTH_PORT, baudRate);
@@ -72,7 +91,7 @@ void draw() {
     
     vest.update();
     
-    if (WRITE_TO_FILE)
+    if (DEBUG_TO_FILE)
       output.flush();
   }
 }
@@ -198,7 +217,9 @@ void serialEvent(Serial p) {
         if (command.length() > 0 && command.charAt(0) == vest.orientPatt) {
           float o = float(Integer.parseInt(command.substring(1))) / 10.0f;
           //debugStr("  - received orientation " + o);
-          debugStr("-> RECEIVED FROM SERIAL orientation " + o);
+          
+          if (boolean(DEBUG & DEBUG_ORIENT))
+            debugStr("-> RECEIVED FROM SERIAL orientation " + o);
           
           roomUser[O] = o;     
   
@@ -234,11 +255,12 @@ void activity(int onState) {
 // *** receive room person tracking position and orientation ***************************************
 void tracking(float roomUserX, float roomUserY, float roomUserO) {
   if (isSystemOn) {
-    debugStr("-> RECEIVED " + trackingPattern + " fff - " + 
-             roomUserX + " " + roomUserY + " " + roomUserO);
+    if (boolean(DEBUG & (DEBUG_POS_R | DEBUG_ORIENT)))
+      debugStr("-> RECEIVED " + trackingPattern + " fff - " + 
+               roomUserX + " " + roomUserY + " " + roomUserO);
 
-    roomUser[X] = map(roomUserX, roomLeft, roomRight, roomRight, roomLeft);
-    roomUser[Y] = map(roomUserY, roomBack, roomFront, -roomFrontOffset, roomFrontOffset);
+    roomUser[X] = roomUserX;
+    roomUser[Y] = roomUserY;
     roomUser[O] = roomUserO; 
     
     if (SEND_IMMEDIATELY) {
@@ -254,7 +276,8 @@ void tracking(float roomUserX, float roomUserY, float roomUserO) {
 // *** receive tracking orientation ****************************************************************
 void trackingOrientation(int roomUserYaw, int roomUserRoll, int roomUserPitch) {
   if (isSystemOn) {
-    debugStr("-> RECEIVED " + orientationTrackingPattern + " iii - " + roomUserYaw +  " " + 
+    if (boolean(DEBUG & DEBUG_ORIENT))
+      debugStr("-> RECEIVED " + orientationTrackingPattern + " iii - " + roomUserYaw +  " " + 
                roomUserRoll + " " + roomUserPitch);
     
     roomUser[O] = float(roomUserYaw); 
@@ -267,11 +290,11 @@ void trackingOrientation(int roomUserYaw, int roomUserRoll, int roomUserPitch) {
 // *** receive tracking position *******************************************************************
 void trackingPosition(float roomUserX, float roomUserY) {
   if (isSystemOn) {
-    debugStr("-> RECEIVED " + trackingPattern + " ff - " + roomUserX + " " + roomUserY);
+    if (boolean(DEBUG & DEBUG_POS_R))
+      debugStr("-> RECEIVED " + trackingPattern + " ff - " + roomUserX + " " + roomUserY);
 
-    roomUser[X] = map(roomUserX, roomLeft, roomRight, roomRight, roomLeft);
-    roomUser[Y] = map(roomUserY, roomBack, roomFront, -roomFrontOffset, roomFrontOffset);
-    roomUser[Y] = map(roomUserY, 0.0, 3000.0, 1500.0, -1500.0);
+    roomUser[X] = roomUserX;
+    roomUser[Y] = roomUserY;
     
     if (SEND_IMMEDIATELY)
       sendPositionToCave();
@@ -282,7 +305,8 @@ void trackingPosition(float roomUserX, float roomUserY) {
 //     send caveuser position to the sound system
 void position(float caveUserX, float caveUserY) {
   if (isSystemOn) {
-    debugStr("-> RECEIVED " + caveUserPositionPattern + " ff - " + caveUserX + " " + caveUserY);
+    if (boolean(DEBUG & DEBUG_POS_C))
+      debugStr("-> RECEIVED " + caveUserPositionPattern + " ff - " + caveUserX + " " + caveUserY);
           
     updateSoundPosition(POSITION, caveUserX, caveUserY);
   }
@@ -292,7 +316,8 @@ void position(float caveUserX, float caveUserY) {
 //     use the velocity to change the heartbeat sound trigger speed
 void velocity(float velocity) {
   if (isSystemOn) {
-    debugStr("-> RECEIVED " + caveUserVelocityPattern + " f - " + velocity);
+    if (boolean(DEBUG & DEBUG_VELO))
+      debugStr("-> RECEIVED " + caveUserVelocityPattern + " f - " + velocity);
   
     caveUserVel = velocity;
   }
@@ -328,8 +353,9 @@ void sendPositionToCave() {
   else
     caveOSCudpOut.send(message, caveNetAddress);
     
-  debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + 
-           " " + roomUser[X] + " " + roomUser[Y]);
+  if (boolean(DEBUG & DEBUG_POS_R))
+    debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + 
+             " " + roomUser[X] + " " + roomUser[Y]);
 }
 
 // *** send orientation data to the CAVE ***********************************************************
@@ -341,8 +367,9 @@ void sendOrientationToCave() {
   else
     caveOSCudpOut.send(message, caveNetAddress);
   
-  debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + 
-           " " + roomUser[O]);
+  if (boolean(DEBUG & DEBUG_ORIENT))
+    debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + 
+             " " + roomUser[O]);
 }
 
 // *** send position and orientation data combined to the CAVE *************************************
@@ -356,8 +383,9 @@ void sendPositionAndOrientationToCave() {
   else
     caveOSCudpOut.send(message, caveNetAddress);
   
-  debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + 
-           " " + roomUser[X] + " " + roomUser[Y]);
+  if (boolean(DEBUG & (DEBUG_POS_R | DEBUG_ORIENT)))
+    debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + 
+              " " + roomUser[X] + " " + roomUser[Y]);
 }
 
 // *** send sound event change to sound system *****************************************************
@@ -374,6 +402,7 @@ void sendSoundChangeEvent(int interaction, float distance, float angle) {
     message.add(soundEvents[interaction].distance);
     message.add(soundEvents[interaction].angle);
     
+  if (boolean(DEBUG & DEBUG_SOUND))
     debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + 
              " - " + soundEvents[interaction].volume + " " + 
              soundEvents[interaction].distance +  " " + soundEvents[interaction].angle);
@@ -394,7 +423,8 @@ void sendSoundEventOff(int interaction) {
     message.add(0.0);
     message.add(0.0);
     
-    debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " - 0.0 0.0 0.0");
+    //if (DEBUG & DEBUG_SOUND)
+      debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + " - 0.0 0.0 0.0");
       
     soundOSCudp.send(message, soundNetAddress);
   }
@@ -433,7 +463,8 @@ void triggerHeartbeat() {
 //     enable/disable the touch sound 
 void touch(int touchOn) {  
   if (isSystemOn) {
-    debugStr("-> RECEIVED " + caveUserTouchPattern + " i - " + touchOn);
+    if (boolean(DEBUG & DEBUG_TOUCH))
+      debugStr("-> RECEIVED " + caveUserTouchPattern + " i - " + touchOn);
          
     if (touchOn == 1) {
       vest.startTouch();
@@ -447,11 +478,14 @@ void touch(int touchOn) {
 
 // *** receive CAVE touch positions ****************************************************************
 //     map the touch positions to vest positions and activate/deactivate the motors accordingly
-void touching(float touchX, float touchY, float touchZ) {
+//void touching(float touchX, float touchY, float touchZ) {
+void touching(float touchX, float touchZ, float touchY) {
   if (isSystemOn && vest.isTouchOn) {
-    debugStr("-> RECEIVED " + caveUserTouchingPattern + " fff - " + 
+    if (boolean(DEBUG & DEBUG_TOUCH))
+      debugStr("-> RECEIVED " + caveUserTouchingPattern + " fff - " + 
+               touchX + " " + touchY + " " + touchZ);
+    println("-> RECEIVED " + caveUserTouchingPattern + " fff - " + 
              touchX + " " + touchY + " " + touchZ);
-                
     vest.touch(touchX, touchY, touchZ);
   }
 }
@@ -459,10 +493,12 @@ void touching(float touchX, float touchY, float touchZ) {
 // *** receive CAVE hit positions ******************************************************************
 //     activate the motors next to the hit positions
 //     trigger the hit sound
-void hit(float hitX, float hitY, float hitZ) { 
+//void hit(float hitX, float hitY, float hitZ) { 
+void hit(float hitX, float hitZ, float hitY) { 
   // new hit event received
   if (isSystemOn && !vest.isHitOn) {
-    debugStr("-> RECEIVED " + caveUserHitPattern + " fff - " + hitX + " " + hitY + " " + hitZ);
+    if (boolean(DEBUG & DEBUG_HIT))
+      debugStr("-> RECEIVED " + caveUserHitPattern + " fff - " + hitX + " " + hitY + " " + hitZ);
             
     vest.hit(hitX, hitY, hitZ);
        
@@ -476,10 +512,20 @@ void hit(float hitX, float hitY, float hitZ) {
 //     trigger the bump sound
 void bump(float bumpX, float bumpY) {   
   if (isSystemOn && !vest.isBumpOn) {
-    debugStr("-> RECEIVED " + caveUserBumpPattern + " ff - " + bumpX + " " + bumpY);    
+    if (boolean(DEBUG & DEBUG_BUMP))
+      debugStr("-> RECEIVED " + caveUserBumpPattern + " ff - " + bumpX + " " + bumpY);    
   
     vest.bump(bumpX, bumpY);
     
     sendSoundChangeEvent(BUMP, 0.0f, 0.0f);    // play sound from center - loudest       
   }
+}
+
+void keyPressed() {
+  if (key == ESC && DEBUG_TO_FILE) {
+    output.flush();
+    output.close();
+  }
+  
+  setDebugLevel(key);
 }
