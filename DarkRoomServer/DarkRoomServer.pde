@@ -27,10 +27,10 @@ final int BUMP = 2;
 final int TOUCH = 3;
 final int HIT = 4;
 final int NUMBER_INTERACTIONS = 5;
-float [] volumes = {0.65, 0.6, 1.0, 0.85, 0.9};    // TODO: better sound tuning
 SpatialSoundEvent soundEvents[] = new SpatialSoundEvent[NUMBER_INTERACTIONS];
 
-OscP5 soundOSCudp, trackingOSCudp, orientTrackingOSCudp, caveOSCtcpIn, caveOSCtcpOut, caveOSCudpIn, caveOSCudpOut; 
+OscP5 soundOSCudp, trackingOSCudp, orientTrackingOSCudp, caveOSCtcpIn, caveOSCtcpOut, 
+      caveOSCudpIn, caveOSCudpOut; 
 NetAddress soundNetAddress, caveNetAddress;
 
 float centerX = 0.0, centerY = 0.0, 
@@ -39,30 +39,23 @@ float centerX = 0.0, centerY = 0.0,
       caveUserXdefault = 0.0, caveUserYdefault = 0.0,
       maxVelocity = 100.0,
       caveUserSoundDistance = 0.0, caveUserSoundAngle = 0.0;
-int lastHearbeat = 0,  testTimeStamp = 0, testInterval = 500, testIdCnt = 0;
+int timestamp = 0, lastHearbeat = 0,  testTimeStamp = 0, testInterval = 500, testIdCnt = 0;
 boolean isClientConnected = false;
 boolean sendPosNow = true;
-int w = 500, h = 500;
+int w = 520, h = 650;
 
+PFont font;
 
 // *************************************************************************************************
 void setup() {
   
   size(w, h);
   background(255);
-  fill(0);
-  textSize(14);
-  text("To switch the debug output press the following buttons", 10, 20);
-  text("0: No debug output", 10, 50);
-  text("1: Toggle CAVE user position output", 10, 70);
-  text("2: Toggle room user position output", 10, 90);
-  text("3: Toggle room user orientation output", 10, 110);
-  text("4: Toggle velocity output", 10, 130);
-  text("5: Toggle hit position output", 10, 150);
-  text("6: Toggle bump position output", 10, 170);
-  text("7: Toggle touch position output", 10, 190);
-  text("8: Toggle sound output", 10, 190);
-  text("9: Debug everything", 10, 210);
+  smooth();
+  font = loadFont("CourierNewPS-BoldMT-16.vlw");
+  textFont(font);
+  //textSize(14);
+  renderHelp();
   
   setupWriter(); 
   
@@ -79,6 +72,9 @@ void setup() {
 
 // *************************************************************************************************
 void draw() {  
+  
+  renderHelp();
+  
   if (PREVENT_INITITATE_TCP_CONN)
     checkClients();
   
@@ -155,7 +151,7 @@ void setupSounds() {
       if (isSystemOn) {
         soundEvents[i].isOn = true;      
         // send to sound system (caveuser)
-        updateSoundPosition(POSITION, caveUserXdefault, caveUserYdefault);
+        updateSoundPosition(POSITION, caveUserXdefault, caveUserYdefault, true);
       } else
         soundEvents[i].isOn = false;
     } else if (i == TOUCH) {
@@ -172,7 +168,7 @@ void activateSystem() {
     if (soundEvents[i].isLooped) {
       soundEvents[i].isOn = true;
       // send to sound system (caveuser)
-      updateSoundPosition(POSITION, caveUserXdefault, caveUserYdefault);
+      updateSoundPosition(POSITION, caveUserXdefault, caveUserYdefault, true);
     }
   }
 }
@@ -308,7 +304,7 @@ void position(float caveUserX, float caveUserY) {
     if (boolean(DEBUG & DEBUG_POS_C))
       debugStr("-> RECEIVED " + caveUserPositionPattern + " ff - " + caveUserX + " " + caveUserY);
           
-    updateSoundPosition(POSITION, caveUserX, caveUserY);
+    updateSoundPosition(POSITION, caveUserX, caveUserY, false);
   }
 }
 
@@ -391,8 +387,9 @@ void sendPositionAndOrientationToCave() {
 // *** send sound event change to sound system *****************************************************
 //     set distance and angle for spatial sound
 //     send OSC event
-void sendSoundChangeEvent(int interaction, float distance, float angle) {
-  if (soundEvents[interaction].isDifferent(soundEvents[interaction].volume, distance, angle, true)) {
+void sendSoundChangeEvent(int interaction, float distance, float angle, boolean ignoreDiff) {
+  if (ignoreDiff || 
+      soundEvents[interaction].isDifferent(soundEvents[interaction].volume, distance, angle, true)) {
     soundEvents[interaction].distance = distance;
     soundEvents[interaction].angle = angle;
     soundEvents[interaction].isOn = true;
@@ -433,13 +430,15 @@ void sendSoundEventOff(int interaction) {
 // *** send sound position change ******************************************************************
 //     normalize cave user position to -1.0/1.0
 //     send sound change event                  
-void updateSoundPosition(int interaction, float cux, float cuy) {
+void updateSoundPosition(int interaction, float cux, float cuy, boolean ignoreDiff) {
   float x = map(cux, caveLeft, caveRight, -1.0, 1.0);
   float y = map(cuy, caveFront, caveBack, -1.0, 1.0);
   caveUserSoundDistance = dist(centerX, centerY, x, y);
   caveUserSoundAngle = getAngle(centerX, centerY, x, y); 
   
-  sendSoundChangeEvent(interaction, caveUserSoundDistance, caveUserSoundAngle);
+  float spatialCaveUserSoundDistance = map(caveUserSoundDistance, 0.0f, 1.0f, 
+                                           ambisonicDistanceMin, ambisonicDistanceMax);
+  sendSoundChangeEvent(interaction, spatialCaveUserSoundDistance, caveUserSoundAngle, ignoreDiff);
 }
 
 // *** calculate angle between two coordinates *****************************************************
@@ -454,7 +453,10 @@ void triggerHeartbeat() {
   int heartbeat = int(map(abs(caveUserVel), 0.0, maxVelocity, minHearbeat, maxHeartbeat));
   if (float(now - lastHearbeat) > 1.0 / float(heartbeat) * 60000) {
     lastHearbeat = now;
-    sendSoundChangeEvent(VELOCITY, caveUserSoundDistance, caveUserSoundAngle);
+    
+    float spatialCaveUserSoundDistance = map(caveUserSoundDistance, 0.0f, 1.0f, 
+                                             ambisonicDistanceMin, ambisonicDistanceMax);
+    sendSoundChangeEvent(VELOCITY, spatialCaveUserSoundDistance, caveUserSoundAngle, true);
   } 
 }
 
@@ -468,7 +470,7 @@ void touch(int touchOn) {
          
     if (touchOn == 1) {
       vest.startTouch();
-      sendSoundChangeEvent(TOUCH, 0.0f, 0.0f);    // play sound from center - loudest 
+      sendSoundChangeEvent(TOUCH, 0.0f, 0.0f, false);    // play sound from center - loudest 
     } else if (touchOn == 0) {
       vest.endTouch();
       sendSoundEventOff(TOUCH);
@@ -503,7 +505,7 @@ void hit(float hitX, float hitZ, float hitY) {
     vest.hit(hitX, hitY, hitZ);
        
     // send hit event to the sound system
-    sendSoundChangeEvent(HIT, 0.0f, 0.0f);    // play sound from center - loudest     
+    sendSoundChangeEvent(HIT, 0.0f, 0.0f, false);    // play sound from center - loudest     
   }
 }
 
@@ -517,7 +519,7 @@ void bump(float bumpX, float bumpY) {
   
     vest.bump(bumpX, bumpY);
     
-    sendSoundChangeEvent(BUMP, 0.0f, 0.0f);    // play sound from center - loudest       
+    sendSoundChangeEvent(BUMP, 0.0f, 0.0f, false);    // play sound from center - loudest       
   }
 }
 

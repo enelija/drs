@@ -130,8 +130,8 @@ class Vest {
     if (!RUN_WITHOUT_VEST)
       bluetooth.write(command);
     
-    if (boolean((DEBUG & DEBUG_HIT) | (DEBUG & DEBUG_TOUCH) | (DEBUG & DEBUG_BUMP)))
-      debugStr(" -> sending RESET command: " + command); 
+    //if (boolean((DEBUG & DEBUG_HIT) | (DEBUG & DEBUG_TOUCH) | (DEBUG & DEBUG_BUMP)))
+    //  debugStr(" -> sending RESET command: " + command); 
   }
   
   void update() {
