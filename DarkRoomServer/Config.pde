@@ -55,15 +55,14 @@ final boolean HEARTBEAT_OFF = false;
 // heartbeat range for slow and fast movement
 int minHearbeat = 50, maxHeartbeat = 100;   // in beats per minute
 
-// calibrate Ambisonic - audio spatialization system
-//  minimum distance should not be < 1.0 because only orientation (no spatialization) would be hearable
-//  maximum distance should be at a higher value so that spatialization works best: 
-//    volume modulation (far sounds should be quieter) should work well
-//    direction of sound should be perceptible
-float ambisonicDistanceMin = 0.75, ambisonicDistanceMax = 10.0;
+// Ambisonic - audio spatialization system calibration value maxSoundDistance [0.0, 10.0], should 
+// be at least 1.0, but calibrated with the target audio hardware to support a good experience of the
+//    - volume modulation (far sounds should be quieter) 
+//    - direction of the sound (should be very well perceptible)
+float maxSoundDistance = 5.0;
 // mix sound volumes: 
 //                  POSITION  VELOCITY  BUMP   TOUCH   HIT
-float [] volumes = {  0.65,   0.6,      1.0,   0.85,   0.9}; 
+float [] volumes = {0.7,       0.5,     0.9,   0.8,    1.0}; 
 
 // ***************************** COORDINATE SYSTEMS ************************************************
 // :

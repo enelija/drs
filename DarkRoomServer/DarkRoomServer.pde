@@ -431,14 +431,19 @@ void sendSoundEventOff(int interaction) {
 //     normalize cave user position to -1.0/1.0
 //     send sound change event                  
 void updateSoundPosition(int interaction, float cux, float cuy, boolean ignoreDiff) {
-  float x = map(cux, caveLeft, caveRight, -1.0, 1.0);
-  float y = map(cuy, caveFront, caveBack, -1.0, 1.0);
+  float x, y;
+  if (caveLeft < 0.0)
+    x = map(cux, caveLeft, caveRight, -maxSoundDistance, maxSoundDistance);
+  else
+    x = map(cux, caveLeft, caveRight, maxSoundDistance, -maxSoundDistance);
+  if (caveFront < 0.0)
+    y = map(cuy, caveFront, caveBack, -maxSoundDistance, maxSoundDistance);
+  else
+    y = map(cuy, caveFront, caveBack, -maxSoundDistance, maxSoundDistance);
   caveUserSoundDistance = dist(centerX, centerY, x, y);
   caveUserSoundAngle = getAngle(centerX, centerY, x, y); 
   
-  float spatialCaveUserSoundDistance = map(caveUserSoundDistance, 0.0f, 1.0f, 
-                                           ambisonicDistanceMin, ambisonicDistanceMax);
-  sendSoundChangeEvent(interaction, spatialCaveUserSoundDistance, caveUserSoundAngle, ignoreDiff);
+  sendSoundChangeEvent(interaction, caveUserSoundDistance, caveUserSoundAngle, ignoreDiff);
 }
 
 // *** calculate angle between two coordinates *****************************************************
@@ -453,10 +458,8 @@ void triggerHeartbeat() {
   int heartbeat = int(map(abs(caveUserVel), 0.0, maxVelocity, minHearbeat, maxHeartbeat));
   if (float(now - lastHearbeat) > 1.0 / float(heartbeat) * 60000) {
     lastHearbeat = now;
-    
-    float spatialCaveUserSoundDistance = map(caveUserSoundDistance, 0.0f, 1.0f, 
-                                             ambisonicDistanceMin, ambisonicDistanceMax);
-    sendSoundChangeEvent(VELOCITY, spatialCaveUserSoundDistance, caveUserSoundAngle, true);
+
+    sendSoundChangeEvent(VELOCITY, caveUserSoundDistance, caveUserSoundAngle, true);
   } 
 }
 
