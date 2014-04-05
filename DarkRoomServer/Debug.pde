@@ -7,8 +7,9 @@ final int DEBUG_HIT = 1 << 4;
 final int DEBUG_BUMP = 1 << 5;
 final int DEBUG_TOUCH = 1 << 6;
 final int DEBUG_SOUND = 1 << 7;
+final int DEBUG_TOUCHING = 1 << 8;
 final int DEBUG_ALL = DEBUG_POS_C | DEBUG_POS_R | DEBUG_ORIENT | DEBUG_VELO | 
-                      DEBUG_HIT | DEBUG_BUMP | DEBUG_TOUCH | DEBUG_SOUND;
+                      DEBUG_HIT | DEBUG_BUMP | DEBUG_TOUCH | DEBUG_SOUND | DEBUG_TOUCHING;
 
 int DEBUG = DEBUG_ALL;
 
@@ -46,7 +47,9 @@ void setDebugLevel(char theKey) {
     DEBUG = DEBUG ^ DEBUG_TOUCH;
   else if (key == '8')
     DEBUG = DEBUG ^ DEBUG_SOUND;
-  else if (key == '9') 
+  else if (key == '9')
+    DEBUG = DEBUG ^ DEBUG_TOUCHING;
+  else if (key == 'A') 
     DEBUG = DEBUG_ALL;
 }
 
@@ -72,8 +75,10 @@ void renderHelp() {
   text("7: Touch position output", 10, offset += diff);
   setOutputColorAnd(DEBUG_SOUND);
   text("8: Sound output", 10, offset += diff);
+  setOutputColorAnd(DEBUG_TOUCHING);
+  text("9: Touching output", 10, offset += diff);
   setOutputColorEqual(DEBUG_ALL);
-  text("9: Debug everything", 10, offset += diff);
+  text("A: Debug everything", 10, offset += diff);
   
   fill(0);  
   text("CAVE IP:                 " + caveIP, 10, offset += diff * 2.5);
