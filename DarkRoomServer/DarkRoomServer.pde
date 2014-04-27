@@ -63,6 +63,8 @@ void setup() {
   
   for (int i = 0; i < roomUser.length; ++i)
     roomUser[i] = 0.0f;
+    
+  roomUser[O] = -ROOM_ORIENTATION_OFFSET;
   
   setupOsc();
   setupSounds();
@@ -215,7 +217,7 @@ void serialEvent(Serial p) {
           if (boolean(DEBUG & DEBUG_ORIENT))
             debugStr("-> RECEIVED FROM SERIAL orientation " + o);
           
-          roomUser[O] = o;     
+          roomUser[O] = o - ROOM_ORIENTATION_OFFSET;     
   
           if (isSystemOn && SEND_IMMEDIATELY) 
             sendOrientationToCave();
@@ -255,7 +257,7 @@ void tracking(float roomUserX, float roomUserY, float roomUserO) {
 
     roomUser[X] = roomUserX;
     roomUser[Y] = roomUserY;
-    roomUser[O] = roomUserO; 
+    roomUser[O] = roomUserO - ROOM_ORIENTATION_OFFSET; 
     
     if (SEND_IMMEDIATELY) {
       if (SEND_ORIENT_POS_SEPARATELY) {
@@ -274,7 +276,7 @@ void trackingOrientation(int roomUserYaw, int roomUserRoll, int roomUserPitch) {
       debugStr("-> RECEIVED " + orientationTrackingPattern + " iii - " + roomUserYaw +  " " + 
                roomUserRoll + " " + roomUserPitch);
     
-    roomUser[O] = float(roomUserYaw); 
+    roomUser[O] = float(roomUserYaw) - ROOM_ORIENTATION_OFFSET; 
     
     if (SEND_IMMEDIATELY)
       sendOrientationToCave();

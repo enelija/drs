@@ -15,7 +15,7 @@ final boolean SEND_IMMEDIATELY = true;
 int timeout = 100;
   
 // set IP for the CAVE
-String caveIP = "10.0.0.200"; /*"127.0.0.1"; "129.187.11.151"; "10.156.309.151"*/
+String caveIP = "192.168.178.69"; /*"127.0.0.1"; "129.187.11.151"; "10.156.309.151"*/
 String localIP = "127.0.0.1";
 
 // in- and out ports for the cave communication
@@ -46,7 +46,10 @@ float VEST_HEIGHT_OFFSET = 80.0;
 // receive orientation from vest or via OSC (smartphone)
 final boolean ORIENTATION_FROM_VEST = false;  
 // test without the vest turns all bluetooth communication off (no InvocationTargetException for OSC TCP)
-final boolean RUN_WITHOUT_VEST = true;  
+final boolean RUN_WITHOUT_VEST = true;
+
+// Offset from north pole to orientation of dark room's front [degrees] 
+final float ROOM_ORIENTATION_OFFSET = 10.0f;
 
 // ********************** SOUND SYSTEM CONFIGURATION ***********************************************
 // turn heartbeat off for testing other sounds better
