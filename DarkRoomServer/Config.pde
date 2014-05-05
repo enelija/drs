@@ -7,10 +7,8 @@ final boolean DEBUG_TO_FILE = false;
 final boolean PREVENT_INITITATE_TCP_CONN = false;
 // only use the tcp for cave communication
 final boolean CAVE_TCP_ONLY = false;
-// send position and orientation in two separate messages (true) or in a single one (false)
-final boolean SEND_ORIENT_POS_SEPARATELY = true;
 // send position and orientation immediately to the CAVE instead of each n ms
-final boolean SEND_IMMEDIATELY = true;
+final boolean SEND_IMMEDIATELY = false;
 // timer for sending to CAVE every 100 ms (10x per second)
 int timeout = 100;
   
@@ -104,4 +102,3 @@ final String caveUserHitPattern = "/cave_person/hit";                      // TC
 final String caveUserBumpPattern = "/cave_person/bump";                    // TCP
 final String roomPersonPositionPattern = "/room_person/position";          // UDP
 final String roomPersonOrientationPattern = "/room_person/orientation";    // UDP
-final String roomPersonPattern = "/room_person";                           // TCP  combines position and orientation

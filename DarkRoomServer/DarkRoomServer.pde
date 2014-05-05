@@ -260,11 +260,8 @@ void tracking(float roomUserX, float roomUserY, float roomUserO) {
     roomUser[O] = roomUserO - ROOM_ORIENTATION_OFFSET; 
     
     if (SEND_IMMEDIATELY) {
-      if (SEND_ORIENT_POS_SEPARATELY) {
-        sendPositionToCave();
-        sendOrientationToCave();
-      } else 
-        sendPositionAndOrientationToCave();
+      sendPositionToCave();
+       sendOrientationToCave();
     }
   }
 }
@@ -323,16 +320,13 @@ void velocity(float velocity) {
 //     toggle between sending orientation and position 
 void sendRoomUserDataToCave() {
   if ((millis() - timestamp) >= timeout) {
-    if (SEND_ORIENT_POS_SEPARATELY) {
-      if (sendPosNow) {
-        sendPositionToCave();
-        sendPosNow = !sendPosNow;
-      } else {
-        sendOrientationToCave();
-        sendPosNow = !sendPosNow;
-      }
-    } else {
-      sendPositionAndOrientationToCave();
+    if (sendPosNow) {
+      sendPositionToCave();
+      sendPosNow = !sendPosNow;
+    }
+    else {
+      sendOrientationToCave();
+      sendPosNow = !sendPosNow;
     }
     timestamp = millis();
   } 
@@ -366,22 +360,6 @@ void sendOrientationToCave() {
   if (boolean(DEBUG & DEBUG_ORIENT))
     debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + 
              " " + roomUser[O]);
-}
-
-// *** send position and orientation data combined to the CAVE *************************************
-void sendPositionAndOrientationToCave() {
-  OscMessage message = new OscMessage(roomPersonPattern);
-  message.add(roomUser[X]);
-  message.add(roomUser[Y]);
-  message.add(roomUser[O]);
-  if (CAVE_TCP_ONLY)
-    caveOSCtcp.send(message);
-  else
-    caveOSCudpOut.send(message, caveNetAddress);
-  
-  if (boolean(DEBUG & (DEBUG_POS_R | DEBUG_ORIENT)))
-    debugStr("<- SENDING " + message.addrPattern() + " " + message.typetag() + 
-              " " + roomUser[X] + " " + roomUser[Y]);
 }
 
 // *** send sound event change to sound system *****************************************************
