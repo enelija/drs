@@ -6,16 +6,14 @@ final boolean DEBUG_TO_FILE = false;
 // prevent from initiating a TCP connection
 final boolean PREVENT_INITITATE_TCP_CONN = false;
 // only use the tcp for cave communication
-final boolean CAVE_TCP_ONLY = false;
-// send position and orientation in two separate messages (true) or in a single one (false)
-final boolean SEND_ORIENT_POS_SEPARATELY = true;
+final boolean CAVE_TCP_ONLY = true;
 // send position and orientation immediately to the CAVE instead of each n ms
-final boolean SEND_IMMEDIATELY = true;
+final boolean SEND_IMMEDIATELY = false;
 // timer for sending to CAVE every 100 ms (10x per second)
 int timeout = 100;
   
 // set IP for the CAVE
-String caveIP = "10.0.0.200"; /*"127.0.0.1"; "129.187.11.151"; "10.156.309.151"*/
+String caveIP =    "129.187.11.151"; /*"192.168.178.69"; "127.0.0.1"; "129.187.11.151"; "10.156.309.151"*/
 String localIP = "127.0.0.1";
 
 // in- and out ports for the cave communication
@@ -34,7 +32,7 @@ boolean isSystemOn = false;
 
 // ********************** VEST CONFIGURATION *******************************************************
 // bluetooth port
-final int BLUETOOTH_PORT = 2;               // 0: COM1 (Windows) // 1: COM3 (Windows)
+final int BLUETOOTH_PORT = 0;               // 0: COM1 (Windows) // 1: COM3 (Windows)
 final int baudRate = 57600;
 // reset is sent to motor each n (resetTimeout) ms in case something goes wrong
 // reset is only sent if no hit/bump/touch action is active
@@ -44,9 +42,12 @@ final int resetTimeout = 1500;/*3600000;*/
 float VEST_HEIGHT_OFFSET = 80.0;
 
 // receive orientation from vest or via OSC (smartphone)
-final boolean ORIENTATION_FROM_VEST = false;  
+final boolean ORIENTATION_FROM_VEST = true;  
 // test without the vest turns all bluetooth communication off (no InvocationTargetException for OSC TCP)
-final boolean RUN_WITHOUT_VEST = true;  
+final boolean RUN_WITHOUT_VEST = true;
+
+// Offset from north pole to orientation of dark room's front [degrees] 
+final float ROOM_ORIENTATION_OFFSET = 240.0f;
 
 // ********************** SOUND SYSTEM CONFIGURATION ***********************************************
 // turn heartbeat off for testing other sounds better
@@ -101,4 +102,3 @@ final String caveUserHitPattern = "/cave_person/hit";                      // TC
 final String caveUserBumpPattern = "/cave_person/bump";                    // TCP
 final String roomPersonPositionPattern = "/room_person/position";          // UDP
 final String roomPersonOrientationPattern = "/room_person/orientation";    // UDP
-final String roomPersonPattern = "/room_person";                           // TCP  combines position and orientation
